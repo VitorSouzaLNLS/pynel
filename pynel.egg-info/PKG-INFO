@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: pynel
+Version: 17.5.23
+Summary: Button and Base package
+Home-page: https://github.com/VitorSouzaLNLS/pynel
+Download-URL: https://github.com/VitorSouzaLNLS/pynel
+Author: Vitor Souza
+Author-email: vitor.souza@lnls.br
+License: MIT License
+Classifier: Intended Audience :: Science/Research
+Classifier: Programming Language :: Python
+Classifier: Topic :: Scientific/Engineering
+Requires-Python: >=3.4
+License-File: LICENSE
