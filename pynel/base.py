@@ -1,9 +1,11 @@
 """Module 'base' for the class object 'Base': a collection of 'Button'(s)"""
 
-from .std_si_data import *
-from .buttons import Button
+from .std_si_data import SI_FAMDATA as _SI_FAMDATA, STD_ELEMS as _STD_ELEMS, STD_SECTS as _STD_SECTS, STD_TYPES as _STD_TYPES, SI_GIRDERS as _SI_GIRDERS
+from .buttons import Button as _Button
 import numpy as _np
 from copy import deepcopy as _dpcopy
+
+_SI_FAMDATA, _STD_ELEMS, _STD_SECTS, _STD_TYPES, _SI_GIRDERS = _SI_FAMDATA(), _STD_ELEMS(), _STD_SECTS(), _STD_TYPES(), _SI_GIRDERS()
 
 class Base:
     def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, reset_valids=False, func='vertical_disp', famdata='auto', buttons=None, girders=None):
@@ -11,9 +13,9 @@ class Base:
             self.__init_by_default(sects, elements, dtypes, exclude, reset_valids, func, famdata)
 
         elif buttons != None and sects == 'all' and dtypes == 'all' and elements == 'all' and girders == None:
-            if isinstance(buttons, list) and all(isinstance(i, Button) for i in buttons):
+            if isinstance(buttons, list) and all(isinstance(i, _Button) for i in buttons):
                 self.__init_by_buttons(buttons=buttons)
-            elif isinstance(buttons, Button):
+            elif isinstance(buttons, _Button):
                 self.__init_by_buttons(buttons=[buttons])
             else:
                 raise ValueError('parameter "buttons" passed with wrong format')
@@ -22,10 +24,10 @@ class Base:
             if isinstance(girders, list):
                 if all(isinstance(i, int) for i in girders):
                     #print('list of ints')
-                    if girders in SI_GIRDERS:
+                    if girders in _SI_GIRDERS:
                         self.__init_by_girders(girders=[girders], dtypes=dtypes, func=func, famdata=famdata)
                 elif all(isinstance(i, list) for i in girders):
-                    if all(girder in SI_GIRDERS for girder in girders):
+                    if all(girder in _SI_GIRDERS for girder in girders):
                         #print('list of list of ints')
                         self.__init_by_girders(girders=girders, dtypes=dtypes, func=func, famdata=famdata)
             else:
@@ -50,7 +52,7 @@ class Base:
         _ELEMS =[]
 
         if dtypes == 'all':
-            _TYPES = STD_TYPES
+            _TYPES = _STD_TYPES
         else:
             if isinstance(dtypes, list):
                 _TYPES = dtypes
@@ -62,7 +64,7 @@ class Base:
         buttons = []
         for dtype in _TYPES:
             for girder_indices in girders:
-                buttons.append(Button(dtype=dtype, indices=girder_indices, func=__stdfunc, famdata=famdata))
+                buttons.append(_Button(dtype=dtype, indices=girder_indices, func=__stdfunc, famdata=famdata))
 
         for button in buttons:
             if button.sect not in _SECTS: 
@@ -108,11 +110,11 @@ class Base:
     def __init_by_default(self, sects, elements, dtypes, exclude, reset_valids, func, famdata):
         #print('starting by default')
         if famdata == 'auto':
-            famdat = SI_FAMDATA
+            famdat = _SI_FAMDATA
         else:
             famdat = famdata
         if sects == 'all':
-            _SECTS = STD_SECTS
+            _SECTS = _STD_SECTS
         else:
             if isinstance(sects, list):
                 _SECTS = sects
@@ -121,7 +123,7 @@ class Base:
             else:
                 raise TypeError('sects parameter not in correct format')
         if elements == 'all':
-            _ELEMS = STD_ELEMS
+            _ELEMS = _STD_ELEMS
         else:
             if isinstance(elements, list):
                 _ELEMS = elements
@@ -131,7 +133,7 @@ class Base:
                 raise TypeError('elements parameter not in correct format')
 
         if dtypes == 'all':
-            _TYPES = STD_TYPES
+            _TYPES = _STD_TYPES
         else:
             if isinstance(dtypes, list):
                 _TYPES = dtypes
@@ -163,7 +165,7 @@ class Base:
                 sectypes.append((sect, 'Not_Sirius_Sector'))
         return dict(sectypes)
 
-    def __generate_buttons(self, exclude=None, famdata=SI_FAMDATA, stdfunc='vertical_disp', default_valids='std'):
+    def __generate_buttons(self, exclude=None, famdata=_SI_FAMDATA, stdfunc='vertical_disp', default_valids='std'):
         
         to_exclude = []
         if exclude == None:
@@ -184,7 +186,7 @@ class Base:
                 raise TypeError("Exclude parameters not in format!")
         
         if to_exclude == []:
-            to_exclude = [Button(sect=-1, name='FalseButton', dtype='dF')]
+            to_exclude = [_Button(sect=-1, name='FalseButton', dtype='dF')]
         exparams=[]
         for exbutton in to_exclude:
             exparams.append((exbutton.sect, exbutton.dtype, exbutton.bname))
@@ -195,27 +197,27 @@ class Base:
                 for elem in self._ELEMS:
                     if (sect, dtype, elem) not in exparams:
                         all_buttons.append(
-                            Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func=stdfunc))
+                            _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func=stdfunc))
         #print(all_buttons)
         return all_buttons
 
     def __exclude_buttons(self, par1, par2=None, par3=None):
         if par2 == None and par3 == None:
             if isinstance(par1, int):
-                exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                              for sect in self._SECTS
                              for dtype in self._TYPES
                              for elem in self._ELEMS
                              if sect == par1]
             elif isinstance(par1, str):
                 if par1[0] == 'd':
-                    exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                                  for sect in self._SECTS
                                  for dtype in self._TYPES
                                  for elem in self._ELEMS
                                  if dtype == par1]
                 else:
-                    exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                                  for sect in self._SECTS
                                  for dtype in self._TYPES
                                  for elem in self._ELEMS
@@ -223,42 +225,42 @@ class Base:
         elif par3 == None:
             if isinstance(par1, int):  # par1 = sect
                 if par2.startswith('d'):  # par1 = sect, par2 = dtype #### (sect, dtype)
-                    exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                                  for sect in self._SECTS
                                  for dtype in self._TYPES
                                  for elem in self._ELEMS
                                  if (dtype == par2 and sect == par1)]
                 # par1 = sect, par2 = elem                     #### (sect, elem)
                 else:
-                    exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                                  for sect in self._SECTS
                                  for dtype in self._TYPES
                                  for elem in self._ELEMS
                                  if (elem == par2 and sect == par1)]
             elif isinstance(par2, int):  # par2 = sect
                 if par1.startswith('d'):  # par1 = dtype, par2 = sect #### (dtype, sect)
-                    exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                                  for sect in self._SECTS
                                  for dtype in self._TYPES
                                  for elem in self._ELEMS
                                  if (dtype == par1 and sect == par2)]
                 # par1 = elem, par2 = sect                     #### (elem, sect)
                 else:
-                    exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                                  for sect in self._SECTS
                                  for dtype in self._TYPES
                                  for elem in self._ELEMS
                                  if (elem == par1 and sect == par2)]
             else:  # par1, par2 = elem or dtype:
                 if par1.startswith('d'):  # par1 = dtype, par2 = elem #### (dtype, elem)
-                    exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                                  for sect in self._SECTS
                                  for dtype in self._TYPES
                                  for elem in self._ELEMS
                                  if (dtype == par1 and elem == par2)]
                 # par1 = elem, par2 = dtype                   #### (elem, dtype)
                 else:
-                    exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
+                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
                                  for sect in self._SECTS
                                  for dtype in self._TYPES
                                  for elem in self._ELEMS
@@ -271,7 +273,7 @@ class Base:
                     dtype = el
                 if isinstance(el, str) and el[0] != 'd':
                     elem = el
-            exbuttons = [Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )]
+            exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )]
         return exbuttons
 
     def refine_base(self, update_buttons=True, flatten=True, return_removed=False, show_invalids=False):  
@@ -337,26 +339,47 @@ class Base:
             return 0
 
     def buttons(self):
+        """Returns the Base buttons list"""
         return self.__buttons_list
 
     def sectors(self):
+        """Returns the sectors presents in the Base"""
         return self._SECTS
 
     def magnets(self):
+        """Returns the magnets (elements) presents in the Base"""
         return self._ELEMS
 
     def dtypes(self):
+        """Returns the modification types used to construct the Base"""
         return self._TYPES
 
     def sector_types(self):
+        """Returns the sector-types presents in the Base"""
         return self._SECT_TYPES
 
     def resp_mat(self):
+        """Returns the Base Response Matrix"""
         return self.__matrix
 
     def is_flat(self):
+        """Verifies if the Base is flat
+        -> (verifies if the buttons in the Base are flatten)"""
         return self.__check_isflat()
 
     def is_updated(self):
+        """Verifies if the Base is up-to-date"""
         return self.__is_updated
     
+    def __len__(self):
+        return len(self.__buttons_list)
+    
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Base):
+            for b in other.buttons():
+                if b not in self.buttons():
+                    return False
+            return True
+        return False
+    
+__all__ = (Base, )

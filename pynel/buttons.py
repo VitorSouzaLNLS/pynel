@@ -8,6 +8,18 @@ from .misc_functions import calc_vdisp as _calc_vdisp
 from .misc_functions import pick_func
 from .misc_functions import rmk_correct_orbit
 
+
+_MODEL_BASE       = MODEL_BASE()
+_SI_SECT_SPOS     = SI_SECT_SPOS()
+_STD_GIRDER_NAMES = STD_GIRDER_NAMES()
+_STD_SECTS        = STD_SECTS()       
+_STD_TYPES        = STD_TYPES()       
+_STD_ELEMS_HALB   = STD_ELEMS_HALB() 
+_STD_ELEMS_LBLP   = STD_ELEMS_LBLP() 
+_STD_SECTS        = STD_SECTS()
+_STD_TYPES        = STD_TYPES()
+
+
 class Button:
     def __init__(self, sect=None, name=None, dtype=None, default_valids='std', famdata='auto', func='testfunc', indices='auto'):
         if indices == 'auto':
@@ -30,19 +42,23 @@ class Button:
         self.indices = indices
         name = ''
         sect = [-1]
+        model_base = _MODEL_BASE
+        si_spos = SI_SPOS()
+        si_sect_spos = _SI_SECT_SPOS
         if len(indices) == 1:
-            name = MODEL_BASE[i].fam_name
-            pos = SI_SPOS[i]
+            i = indices[0]
+            name = model_base[i].fam_name
+            #pos = si_spos[i]
             for j in range(20):
-                if SI_SECT_SPOS[j] <= SI_SPOS[i] < SI_SECT_SPOS[j+1]:
+                if si_sect_spos[j] <= si_spos[i] < si_sect_spos[j+1]:
                     if (j+1) not in sect:
                         sect.append(j+1)
         else:
             for i in indices:
-                name += '_'+MODEL_BASE[i].fam_name # should agree with the std girders names
-                pos = SI_SPOS[i]
+                name += '_'+model_base[i].fam_name # should agree with the std girders names
+                #pos = si_spos[i]
                 for j in range(20):
-                    if SI_SECT_SPOS[j] <= SI_SPOS[i] < SI_SECT_SPOS[j+1]:
+                    if si_sect_spos[j] <= si_spos[i] < si_sect_spos[j+1]:
                         if (j+1) not in sect:
                             sect.append(j+1)
         if len(sect) > 2:
@@ -54,9 +70,9 @@ class Button:
         self.dtype = dtype
         self.sectype = self.__sector_type()
         if default_valids == 'std':
-            self.__validnames = STD_GIRDER_NAMES
-            self.__validsects = STD_SECTS
-            self.__validtypes = STD_TYPES
+            self.__validnames = _STD_GIRDER_NAMES
+            self.__validsects = _STD_SECTS     
+            self.__validtypes = _STD_TYPES        
         else:
             self.__validnames = default_valids[1]
             self.__validsects = default_valids[0]
@@ -87,21 +103,21 @@ class Button:
         self.sectype = self.__sector_type()
 
         if famdata == 'auto':
-            fam = SI_FAMDATA
+            fam = SI_FAMDATA()
         else:
             fam = famdata
 
         if default_valids == 'std':
             if self.sectype in ['HA-LB', 'LB-HA']:
-                self.__validnames = STD_ELEMS_HALB
+                self.__validnames = _STD_ELEMS_HALB
 
             elif self.sectype in ['LP-LB', 'LB-LP']:
-                self.__validnames = STD_ELEMS_LBLP
+                self.__validnames = _STD_ELEMS_LBLP
             else:
                 self.__validnames = []
 
-            self.__validsects = STD_SECTS
-            self.__validtypes = STD_TYPES
+            self.__validsects = _STD_SECTS
+            self.__validtypes = _STD_TYPES
 
         elif isinstance(default_valids, list):
             if len(default_valids) == 3:
@@ -265,7 +281,7 @@ class Button:
         
         # the calculation:
         disp = []
-        MODEL_ = create_std_si_model()
+        MODEL_ = _MODEL_BASE
         OC = _OrbitCorr(MODEL_, 'SI')
         OC.params.maxnriters = 500
         jmat = OC.get_jacobian_matrix()

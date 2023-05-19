@@ -2,7 +2,9 @@
 
 import pyaccel as _pyaccel
 import numpy as _np
-from .std_si_data import BPMIDX as _BPMIDX
+from .std_si_data import BPMIDX as _BPMIDX_
+
+_BPMIDX = _BPMIDX_()
 
 def apply_deltas(model, base, deltas):
     for i, button in enumerate(base.buttons()):
