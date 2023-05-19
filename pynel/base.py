@@ -8,6 +8,31 @@ from copy import deepcopy as _dpcopy
 _SI_FAMDATA, _STD_ELEMS, _STD_SECTS, _STD_TYPES, _SI_GIRDERS = _SI_FAMDATA(), _STD_ELEMS(), _STD_SECTS(), _STD_TYPES(), _SI_GIRDERS()
 
 class Base:
+    """
+    Object Base: a collection of buttons (Button Object)
+    About:
+    ---> The Base object was implemented to group Button objects and perform analisys on how these buttons can modify the optics in SIRIUS ring.
+
+    Creation:
+    ---> Creating a Base can be performed in two basic ways: passing specified elements and sectors or passing girder indices:
+
+    > Creating by default requires passing three args: 
+    >'sects' (integers), 'elements' (name strings of the magnets) and 'dtypes' (variations between 'dx', 'dy', 'dr')
+
+    > Creating by buttons requires passing only one arg: 
+    >'buttons' (a list of buttons or a single one)
+
+    > Creating by girders indices requires passing only two args: 
+    > 'girders' (the indices of a single girder or more girders) and 'dtypes' (variations between 'dx', 'dy', 'dr')
+
+    *kwargs:
+    auto_refine: default=True ---> automatically refines the Base by removing invalid buttons and flatten the valids
+    exclude: default=None ---> create the base without a group of unwanted elements, sects or dtypes
+    reset_valids: default=False ---> reset the 'valid' condition for buttons if it is not a SIRIUS standart valid button ("Sandbox buttons")
+    func: default='vertical_disp'/'testfunc' ---> set the default signature function of the buttons
+    famdata: default='auto' --->  if auto: automatically collects the standart SIRIUS famdata, else: can pass other pre-rendered famdata
+
+    """
     def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, reset_valids=False, func='vertical_disp', famdata='auto', buttons=None, girders=None):
         if buttons == None and girders == None:
             self.__init_by_default(sects, elements, dtypes, exclude, reset_valids, func, famdata)
@@ -277,6 +302,12 @@ class Base:
         return exbuttons
 
     def refine_base(self, update_buttons=True, flatten=True, return_removed=False, show_invalids=False):  
+        """Function that refines the Base:
+        update_buttons: default=True --> the refining will find and remove invalid buttons
+        return_removed: default=False --> return a list of the invalid buttons (removed or set to remove)
+        show_invalids: default=False --> print the invalid-buttons invalid parameters
+        flatten: default=True --> split not-flat buttons
+        """
         if flatten:
             flat = []
             for b in self.__buttons_list:
