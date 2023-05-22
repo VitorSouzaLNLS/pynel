@@ -22,8 +22,8 @@ def pick_func(dtype):
         func = _pyaccel.lattice.set_error_rotation_pitch
     elif dtype == 'dry':
         func = _pyaccel.lattice.set_error_rotation_yaw
-    elif dtype == 'dksl':
-        func = add_error_ksl
+    # elif dtype == 'dksl':
+    #     func = add_error_ksl
     else:
         raise TypeError('invalid dtype!')
     return func
