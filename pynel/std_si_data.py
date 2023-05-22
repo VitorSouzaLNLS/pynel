@@ -12009,11 +12009,14 @@ def STD_ELEMS_LBLP():
 
 def STD_TYPES():
     """Returns the default modification types: 
-    'dr' : Rotation roll misalignment (theta)
-    'dx' : Tranverse-horizontal misalignment (X)
-    'dy' : Tranverse-vertical misalignment (Y)
+    'dr'  : Rotation roll misalignment (theta)
+    'dx'  : Tranverse-horizontal misalignment (X)
+    'dy'  : Tranverse-vertical misalignment (Y)
+    'drp' : Rotation pitch misalignment 
+    'dry' : Rotation yaw misalignment
+    'dksl': Skew Gradient Strength
     """
-    return set(['dr', 'dx', 'dy'])
+    return set(['dr', 'dx', 'dy', 'drp', 'dry', 'dksl'])
 
 def STD_SECTS():
     """Returns the default sectors of SIRIUS ring (sectors from 1 to 20)"""
