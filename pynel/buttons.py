@@ -18,7 +18,11 @@ _STD_ELEMS_HALB   = STD_ELEMS_HALB()
 _STD_ELEMS_LBLP   = STD_ELEMS_LBLP() 
 _STD_SECTS        = STD_SECTS()
 _STD_TYPES        = STD_TYPES()
-
+_OC_MODEL = MODEL_BASE() # new pymodels si model
+_OC = _OrbitCorr(_OC_MODEL, 'SI')
+_OC.params.maxnriters = 50
+_IJMAT            = STD_ORBCORR_INV_JACOB_MAT()
+# _IJMAT          = _OC.get_inverse_matrix(_OC.get_jacobian_matrix())
 
 class Button:
     def __init__(self, sect=None, name=None, dtype=None, default_valids='std', famdata='auto', func='testfunc', indices='auto'):
@@ -281,24 +285,24 @@ class Button:
         
         # the calculation:
         disp = []
-        MODEL_ = _MODEL_BASE
-        OC = _OrbitCorr(MODEL_, 'SI')
-        OC.params.maxnriters = 500
-        jmat = OC.get_jacobian_matrix()
-        inv_jacob = OC.get_inverse_matrix(jmat)
+        # MODEL_ = MODEL_BASE() # new pymodels si model
+        # OC_ = _OrbitCorr(MODEL_, 'SI')
+        #_IJMAT_  = OC_.get_inverse_matrix(OC_.get_jacobian_matrix())
         for ind in indices:
-            func(MODEL_, indices=ind, values=+1e-6) # applying positive delta
-            rmk_correct_orbit(OC, inv_jacob)
-            disp_p = _calc_vdisp(MODEL_)
+            func(_OC_MODEL, indices=ind, values=+1e-6) # applying (SETTING) positive delta
+            rmk_correct_orbit(_OC, _IJMAT)
+            disp_p = _calc_vdisp(_OC_MODEL)
             
-            func(MODEL_, indices=ind, values=-1e-6) # applying negative delta
-            rmk_correct_orbit(OC, inv_jacob)
-            disp_n = _calc_vdisp(MODEL_)
+            func(_OC_MODEL, indices=ind, values=-1e-6) # applying (SETTING) negative delta
+            rmk_correct_orbit(_OC, _IJMAT)
+            disp_n = _calc_vdisp(_OC_MODEL)
             
             disp_ = (disp_p - disp_n)/(2e-6)
             
             disp.append(disp_.ravel())
-        del MODEL_, disp_, disp_n, disp_p, OC, inv_jacob
+
+            func(_OC_MODEL, indices=ind, values=0.0)
+        del disp_, disp_n, disp_p #, OC_, MODEL_
         return disp
 
     def flatten(self):

@@ -3,6 +3,8 @@
 import pymodels as _pymodels
 import numpy as _np
 from pyaccel.lattice import find_spos as _find_spos
+import os as _os
+# file_path = _os.path.join(_os.path.dirname(__file__), 'pynel_inv_jacob_mat.txt')
 
 def MODEL_BASE():
     """Generate a standart (BASE) SIRIUS model with radiation, cavity and vchambers ON."""
@@ -12014,9 +12016,9 @@ def STD_TYPES():
     'dy'  : Tranverse-vertical misalignment (Y)
     'drp' : Rotation pitch misalignment 
     'dry' : Rotation yaw misalignment
-    'dksl': Skew Gradient Strength
     """
-    return set(['dr', 'dx', 'dy', 'drp', 'dry', 'dksl'])
+    #'dksl': Skew Gradient Strength
+    return [ 'dx', 'dy', 'dr', 'drp', 'dry'] #, 'dksl'])
 
 def STD_SECTS():
     """Returns the default sectors of SIRIUS ring (sectors from 1 to 20)"""
@@ -37676,3 +37678,9 @@ def SI_FAMDATA():
    '1',
    '2',
    '']}}
+
+def NothingHere():
+    print('Nothing Here!')
+
+def STD_ORBCORR_INV_JACOB_MAT():
+    return _np.loadtxt(_os.path.join(_os.path.dirname(__file__), 'pynel_inv_jacob_mat.txt'))
