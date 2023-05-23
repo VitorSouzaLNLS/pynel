@@ -8,8 +8,13 @@ _BPMIDX = _BPMIDX_()
 
 def apply_deltas(model, base, deltas):
     for i, button in enumerate(base.buttons()):
-        func = pick_func(button.dtype)
-        func(model, indices=button.indices, values=deltas[i])
+        # func = pick_func(button.dtype)
+        # func(model, indices=button.indices, values=deltas[i])
+        pick_func(button.dtype)(model, indices=button.indices, values=deltas[i])
+
+def revoke_deltas(model, base):
+    for i, button in enumerate(base.buttons()):
+        pick_func(button.dtype)(model, indices=button.indices, values=0.0)
 
 def pick_func(dtype):
     if dtype == 'dx':
