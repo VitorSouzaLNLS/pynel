@@ -16,27 +16,41 @@ _STD_SECTS        = STD_SECTS()
 _STD_TYPES        = STD_TYPES()       
 _STD_ELEMS_HALB   = STD_ELEMS_HALB() 
 _STD_ELEMS_LBLP   = STD_ELEMS_LBLP() 
-_STD_SECTS        = STD_SECTS()
-_STD_TYPES        = STD_TYPES()
 _OC_MODEL = MODEL_BASE() # new pymodels si model
 _OC = _OrbitCorr(_OC_MODEL, 'SI')
 _OC.params.maxnriters = 50
 _IJMAT            = STD_ORBCORR_INV_JACOB_MAT()
 # _IJMAT          = _OC.get_inverse_matrix(_OC.get_jacobian_matrix())
+_STD_SECT_TYPES = ['HighBetaA -> LowBetaB', 
+                    'LowBetaB -> LowBetaP', 
+                    'LowBetaP -> LowBetaB', 
+                    'LowBetaB -> HighBetaA']
 
 class Button:
-    def __init__(self, sect=None, name=None, dtype=None, default_valids='std', famdata='auto', func='testfunc', indices='auto'):
+    def __init__(self, sect=None, dtype=None, name=None, default_valids='std', famdata='auto', func='testfunc', indices='auto'):
+        if default_valids == 'std':
+            default_valids = ['std', 'std', 'std']
+        elif default_valids == 'off':
+            default_valids = ['off', 'off', 'off']
+        elif isinstance(default_valids, (tuple, list)):
+            if len(default_valids) == 3:
+                if any((d not in ['off', 'std']) for d in default_valids):
+                    raise ValueError('the "default_valids should contain only "std" of "off" strings"')
+            else:
+                raise ValueError('"default_valids" parameter should be a list of 3 strings: "off" and/or "std"')
+        else:
+            raise ValueError('"default_valids" parameter should be "off", "std" or a list/tuple')
         if indices == 'auto':
             if sect == None and name == None and dtype == None:
                 raise ValueError('None of this parameters were passed: Sect, Name, Dtype or Indices')
             else:
-                self.__init_by_default(sect=sect, name=name, dtype=dtype, default_valids=default_valids, famdata=famdata, func=func)
+                self.__init_by_default(sect=sect, dtype=dtype, name=name, default_valids=default_valids, famdata=famdata, func=func)
         elif isinstance(indices, list):
-            if all(isinstance(i, int) for i in indices):
+            if all(isinstance(i, (int, _np.integer)) for i in indices):
                 self.__init_by_indices(indices=indices, dtype=dtype, func=func, default_valids=default_valids)
             else:
                 raise ValueError('indices with invalid values')
-        elif isinstance(indices, int):
+        elif isinstance(indices, (int, _np.integer)):
             self.__init_by_indices(indices=[indices], dtype=dtype, func=func, default_valids=default_valids)
         else:
             raise ValueError('Indices passed in wrong format')
@@ -66,21 +80,28 @@ class Button:
                         if (j+1) not in sect:
                             sect.append(j+1)
         if len(sect) > 2:
-            print(name, sect, indices)
+            #print(name, sect, indices)
             raise ValueError('some elements passed are from different sectors')
         self.sect = sect[-1]
         self.bname = name
         self.fantasy_name = name
         self.dtype = dtype
         self.sectype = self.__sector_type()
-        if default_valids == 'std':
+        if default_valids[0] == 'off':
+            self.__validsects = 'off'
+        elif default_valids[0] == 'std':
+            self.__validsects = _STD_SECTS 
+
+        if default_valids[1] == 'off':
+            self.__validtypes = 'off'
+        elif default_valids[1] == 'std':
+            self.__validtypes = _STD_TYPES
+
+        if default_valids[2] == 'off':
+            self.__validnames = 'off'
+        elif default_valids[2] == 'std':
             self.__validnames = _STD_GIRDER_NAMES
-            self.__validsects = _STD_SECTS     
-            self.__validtypes = _STD_TYPES        
-        else:
-            self.__validnames = default_valids[1]
-            self.__validsects = default_valids[0]
-            self.__validtypes = default_valids[2]
+
         self.signature = _np.array([0.0 for _ in range(160)])
         if self.check_isvalid():
             if func == 'vertical_disp':
@@ -98,7 +119,7 @@ class Button:
             else:
                 self.signature = temp
 
-    def __init_by_default(self, sect, name, dtype, default_valids, famdata, func):
+    def __init_by_default(self, sect, dtype, name, default_valids, famdata, func):
         #print('init by default')
         self.bname = name
         self.fantasy_name = name
@@ -111,25 +132,25 @@ class Button:
         else:
             fam = famdata
 
-        if default_valids == 'std':
-            if self.sectype in ['HA-LB', 'LB-HA']:
-                self.__validnames = _STD_ELEMS_HALB
+        if default_valids[0] == 'std':
+            self.__validsects = _STD_SECTS
+        if default_valids[0] == 'off':
+            self.__validsects = 'off'
 
-            elif self.sectype in ['LP-LB', 'LB-LP']:
+        if default_valids[1] == 'std':
+            self.__validtypes = _STD_TYPES
+        if default_valids[1] == 'off':
+            self.__validtypes = 'off'
+
+        if default_valids[2] == 'std':
+            if self.sectype in ['HighBetaA -> LowBetaB', 'LowBetaB -> HighBetaA']:
+                self.__validnames = _STD_ELEMS_HALB
+            elif self.sectype in ['LowBetaP -> LowBetaB', 'LowBetaB -> LowBetaP']:
                 self.__validnames = _STD_ELEMS_LBLP
             else:
                 self.__validnames = []
-
-            self.__validsects = _STD_SECTS
-            self.__validtypes = _STD_TYPES
-
-        elif isinstance(default_valids, list):
-            if len(default_valids) == 3:
-                self.__validsects = default_valids[0]
-                self.__validnames = default_valids[1]
-                self.__validtypes = default_valids[2]
-        else:
-            raise TypeError('default valid properties not in correct format')
+        if default_valids[2] == 'off':
+            self.__validnames = 'off'
 
         self.indices = []
         self.signature = _np.zeros(160)
@@ -148,15 +169,15 @@ class Button:
             
         if all(isinstance(l, list) for l in self.indices):
             if len(self.indices) == 1:
-                if all(isinstance(i, int) for i in self.indices[0]):
+                if all(isinstance(i, (int, _np.integer)) for i in self.indices[0]):
                     self.indices = self.indices[0]
                     self.signature = temp[0]
-            elif all(all(isinstance(i, int) for i in self.indices[k]) for k in range(len(self.indices))):
+            elif all(all(isinstance(i, (int, _np.integer)) for i in self.indices[k]) for k in range(len(self.indices))):
                 self.signature = temp
             else:
                 raise ValueError('indices has lists, but not lists of ints')
 
-        elif all(isinstance(i, int) for i in self.indices):
+        elif all(isinstance(i, (int, _np.integer)) for i in self.indices):
             if len(temp) == 1:
                 if len(temp[0]) == 160:
                     self.signature = temp[0]
@@ -174,7 +195,7 @@ class Button:
         if self.indices == []:
             return True
         elif isinstance(self.indices, list):
-            if all(isinstance(idx, int) for idx in self.indices):
+            if all(isinstance(idx, (int, _np.integer)) for idx in self.indices):
                 return True
             elif all(isinstance(idx, list) for idx in self.indices):
                 return False
@@ -193,35 +214,77 @@ class Button:
         return False
 
     def check_isvalid(self):
-        if (self.bname in self.__validnames) and (self.sect in self.__validsects) and (self.dtype in self.__validtypes):
-            return True
-        return False
+        validify = [False, False, False]
+        if self.__validsects == 'off':
+            validify[0] = True
+        elif (self.sect in self.__validsects):
+            validify[0] = True
+        if self.__validtypes == 'off':
+            validify[1] = True
+        elif (self.dtype in self.__validtypes):
+            validify[1] = True
+        if self.__validnames == 'off':
+            validify[2] = True
+        elif (self.bname in self.__validnames):
+            validify[2] = True
+        return all(validify)
+    
+    def __check_isvalid_for_printing(self):
+        validify = [False, False, False]
+        if self.__validsects == 'off':
+            validify[0] = True
+        elif (self.sect in self.__validsects):
+            validify[0] = True
+        if self.__validtypes == 'off':
+            validify[1] = True
+        elif (self.dtype in self.__validtypes):
+            validify[1] = True
+        if self.__validnames == 'off':
+            validify[2] = True
+        elif (self.bname in self.__validnames):
+            validify[2] = True
+        return validify
+        
 
     def show_invalid_parameters(self):
-        if (self.bname not in self.__validnames) and (self.sect not in self.__validsects):
-            print('(%d, %s, %s) ---> invalid name & sect' %
-                  (self.sect, self.bname, self.dtype))
-        elif (self.bname not in self.__validnames) and (self.dtype not in self.__validtypes):
-            print('(%d, %s, %s) ---> invalid name & type' %
-                  (self.sect, self.bname, self.dtype))
-        elif (self.dtype not in self.__validtypes) and (self.sect not in self.__validsects):
-            print('(%d, %s, %s) ---> invalid type & sect' %
-                  (self.sect, self.bname, self.dtype))
-        elif (self.bname not in self.__validnames):
-            print('(%d, %s, %s) ---> invalid name' %
-                  (self.sect, self.bname, self.dtype))
-        elif (self.dtype not in self.__validtypes):
-            print('(%d, %s, %s) ---> invalid type' %
-                  (self.sect, self.bname, self.dtype))
-        elif (self.sect not in self.__validsects):
-            print('(%d, %s, %s) ---> invalid sect' %
-                  (self.sect, self.bname, self.dtype))
-        elif (self.bname not in self.__validnames) and (self.sect not in self.__validsects) and (self.dtype not in self.__validtypes):
-            print('(%d, %s, %s) ---> invalid name & type & sect' %
-                  (self.sect, self.bname, self.dtype))
-        else:
-            print('(%d, %s, %s) ---> valid button' %
-                  (self.sect, self.bname, self.dtype))
+        valids = self.__check_isvalid_for_printing()
+        invalid = []
+        strings = ['sector', 'dtype', 'name']
+        for i, v in enumerate(valids):
+            if not v:
+                invalid.append(strings[i])
+        if len(invalid) == 0:
+            print('(%d, %s, %s) ---> valid button' % (self.sect,self.dtype, self.bname))
+        if len(invalid) == 1:
+            print('(%d, %s, %s) ---> invalid %s' % (self.sect, self.dtype,self.bname,  invalid[0]))
+        if len(invalid) == 2:
+            print('(%d, %s, %s) ---> invalid %s & %s' % (self.sect, self.dtype, self.bname, invalid[0], invalid[1]))
+        if len(invalid) == 3:
+            print('(%d, %s, %s) ---> completely invalid' % (self.sect, self.dtype, self.bname))
+        # if (self.bname not in self.__validnames) and (self.sect not in self.__validsects):
+        #     print('(%d, %s, %s) ---> invalid name & sect' %
+        #           (self.sect, self.bname, self.dtype))
+        # elif (self.bname not in self.__validnames) and (self.dtype not in self.__validtypes):
+        #     print('(%d, %s, %s) ---> invalid name & type' %
+        #           (self.sect, self.bname, self.dtype))
+        # elif (self.dtype not in self.__validtypes) and (self.sect not in self.__validsects):
+        #     print('(%d, %s, %s) ---> invalid type & sect' %
+        #           (self.sect, self.bname, self.dtype))
+        # elif (self.bname not in self.__validnames):
+        #     print('(%d, %s, %s) ---> invalid name' %
+        #           (self.sect, self.bname, self.dtype))
+        # elif (self.dtype not in self.__validtypes):
+        #     print('(%d, %s, %s) ---> invalid type' %
+        #           (self.sect, self.bname, self.dtype))
+        # elif (self.sect not in self.__validsects):
+        #     print('(%d, %s, %s) ---> invalid sect' %
+        #           (self.sect, self.bname, self.dtype))
+        # elif (self.bname not in self.__validnames) and (self.sect not in self.__validsects) and (self.dtype not in self.__validtypes):
+        #     print('(%d, %s, %s) ---> invalid name & type & sect' %
+        #           (self.sect, self.bname, self.dtype))
+        # else:
+        #     print('(%d, %s, %s) ---> valid button' %
+        #           (self.sect, self.bname, self.dtype))
 
     def __find_indices(self, famdata):
         famidx = famdata[self.bname]['index']
@@ -230,15 +293,15 @@ class Button:
             idx = []
         else:
             if aux == 0.5:  # 1 elemento a cada 2 setores
-                if self.sectype == 'HA-LB':
+                if self.sectype == _STD_SECT_TYPES[0]:      #'HighBetaA -> LowBetaB':
                     idx = [famidx[int(0.5 * (self.sect-1))]]
-                elif self.sectype == 'LB-HA':
+                elif self.sectype == _STD_SECT_TYPES[3]:    #'LowBetaB -> HighBetaA':
                     idx = [famidx[int((0.5*self.sect) - 1)]]
 
-                elif self.sectype == 'LB-LP':
+                elif self.sectype == _STD_SECT_TYPES[1]:    #'LowBetaB -> LowBetaP':
                     idx = [famidx[int((0.5*self.sect) - 1)]]
 
-                elif self.sectype == 'LP-LB':
+                elif self.sectype == _STD_SECT_TYPES[2]:    #'LowBetaP -> LowBetaB':
                     idx = [famidx[int(0.5 * (self.sect-1))]]
 
             elif aux == 1.0:  # 1 elemento por setor
@@ -249,13 +312,13 @@ class Button:
 
     def __sector_type(self):
         if self.sect in [2, 6, 10, 14, 18]:
-            return 'LB-LP'
+            return _STD_SECT_TYPES[1]
         elif self.sect in [3, 7, 11, 15, 19]:
-            return 'LP-LB'
+            return _STD_SECT_TYPES[2]
         elif self.sect in [4, 8, 12, 16, 20]:
-            return 'LB-HA'
+            return _STD_SECT_TYPES[3]
         elif self.sect in [1, 5, 9, 13, 17]:
-            return 'HA-LB'
+            return _STD_SECT_TYPES[0]
         else:
             return 'Not_Sirius_Sector'
 
@@ -266,7 +329,7 @@ class Button:
             for ind in self.indices:
                 _disp = _np.array([i for i in range(160)])
                 disp.append(_disp.ravel())
-        elif all(isinstance(i, int) for i in self.indices):
+        elif all(isinstance(i, (int, _np.integer)) for i in self.indices):
             #print('list of ints')
             _disp = _np.array([i for i in range(160)])
             disp.append(_disp.ravel())
@@ -278,7 +341,7 @@ class Button:
         func = pick_func(self.dtype)
         if all(isinstance(i, list) for i in self.indices): # list of list of ints
             indices = self.indices
-        elif all(isinstance(i, int) for i in self.indices): # list of ints
+        elif all(isinstance(i, (int, _np.integer)) for i in self.indices): # list of ints
             indices = [self.indices]  
         else:
             raise ValueError('Indices with format problem')
