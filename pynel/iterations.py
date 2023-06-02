@@ -7,7 +7,7 @@ from .misc_functions import calc_vdisp as _calc_vdisp
 from .misc_functions import rmk_correct_orbit as _rmk_correct_orbit 
 from .misc_functions import calc_rms as _calc_rms
 from .misc_functions import revoke_deltas as _revoke_deltas
-from .std_si_data import STD_ORBCORR_INV_JACOB_MAT as _inv_jacob
+from .data_test_fix import STD_ORBCORR_INV_JACOB_MAT as _inv_jacob
 
 _IJMAT = _inv_jacob()
 

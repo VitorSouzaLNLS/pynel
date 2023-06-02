@@ -1,6 +1,6 @@
 """Module 'buttons' for the class Object Button"""
 
-from .std_si_data import *
+from .data_test_fix import MODEL_BASE, SI_SECT_SPOS, STD_SECTS, STD_TYPES, STD_ELEMS_HALB, STD_ELEMS_LBLP, STD_ORBCORR_INV_JACOB_MAT, SI_FAMDATA, STD_GIRDER_NAMES
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 import numpy as _np
 from copy import deepcopy as _dpcopy
@@ -25,6 +25,7 @@ _STD_SECT_TYPES = ['HighBetaA -> LowBetaB',
                     'LowBetaB -> LowBetaP', 
                     'LowBetaP -> LowBetaB', 
                     'LowBetaB -> HighBetaA']
+_SI_FAMDATA = SI_FAMDATA()
 
 class Button:
     def __init__(self, sect=None, dtype=None, name=None, default_valids='std', famdata='auto', func='testfunc', indices='auto'):
@@ -128,7 +129,7 @@ class Button:
         self.sectype = self.__sector_type()
 
         if famdata == 'auto':
-            fam = SI_FAMDATA()
+            fam = _SI_FAMDATA
         else:
             fam = famdata
 
