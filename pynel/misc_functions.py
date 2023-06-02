@@ -2,7 +2,7 @@
 
 import pyaccel as _pyaccel
 import numpy as _np
-from .std_si_data import BPMIDX as _BPMIDX_
+from .data_test_fix import BPMIDX as _BPMIDX_
 
 _BPMIDX = _BPMIDX_()
 

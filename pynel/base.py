@@ -1,7 +1,8 @@
 """Module 'base' for the class object 'Base': a collection of 'Button'(s)"""
 
-from .std_si_data import SI_FAMDATA as _SI_FAMDATA, STD_ELEMS as _STD_ELEMS, STD_SECTS as _STD_SECTS, STD_TYPES as _STD_TYPES, SI_GIRDERS as _SI_GIRDERS
+from .data_test_fix import SI_FAMDATA as _SI_FAMDATA, STD_ELEMS as _STD_ELEMS, STD_SECTS as _STD_SECTS, STD_TYPES as _STD_TYPES, SI_GIRDERS as _SI_GIRDERS
 from .buttons import Button as _Button
+from .buttons import _STD_SECT_TYPES
 import numpy as _np
 from copy import deepcopy as _dpcopy
 
@@ -28,14 +29,14 @@ class Base:
     *kwargs:
     auto_refine: default=True ---> automatically refines the Base by removing invalid buttons and flatten the valids
     exclude: default=None ---> create the base without a group of unwanted elements, sects or dtypes
-    reset_valids: default=False ---> reset the 'valid' condition for buttons if it is not a SIRIUS standart valid button ("Sandbox buttons")
+    valids_cond: default=False ---> reset the 'valid' condition for buttons if it is not a SIRIUS standart valid button ("Sandbox buttons")
     func: default='vertical_disp'/'testfunc' ---> set the default signature function of the buttons
     famdata: default='auto' --->  if auto: automatically collects the standart SIRIUS famdata, else: can pass other pre-rendered famdata
 
     """
-    def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, reset_valids=False, func='vertical_disp', famdata='auto', buttons=None, girders=None):
+    def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, valids_cond=['std', 'std', 'std'], func='vertical_disp', famdata='auto', buttons=None, girders=None):
         if buttons == None and girders == None:
-            self.__init_by_default(sects, elements, dtypes, exclude, reset_valids, func, famdata)
+            self.__init_by_default(sects=sects, elements=elements, dtypes=dtypes, exclude=exclude, valids_cond=valids_cond, func=func, famdata=famdata)
 
         elif buttons != None and sects == 'all' and dtypes == 'all' and elements == 'all' and girders == None:
             if isinstance(buttons, list) and all(isinstance(i, _Button) for i in buttons):
@@ -49,12 +50,18 @@ class Base:
             if isinstance(girders, list):
                 if all(isinstance(i, int) for i in girders):
                     #print('list of ints')
-                    if girders in _SI_GIRDERS:
+                    if girders in _SI_GIRDERS: # mark: problem rigidity
                         self.__init_by_girders(girders=[girders], dtypes=dtypes, func=func, famdata=famdata)
+                    elif girders not in _SI_GIRDERS: # mark: problem developing
+                        print('Warning: the girders passed are not part of Standart SIRIUS girders')
+                        self.__init_by_girders(girders=[girders], dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
                 elif all(isinstance(i, list) for i in girders):
-                    if all(girder in _SI_GIRDERS for girder in girders):
+                    if all(girder in _SI_GIRDERS for girder in girders): # mark: problem rigidity
                         #print('list of list of ints')
                         self.__init_by_girders(girders=girders, dtypes=dtypes, func=func, famdata=famdata)
+                    elif True: #all(girder in _SI_GIRDERS for girder in girders): # mark: problem rigidity
+                        print('Warning: the girders passed are not part of Standart SIRIUS girders')
+                        self.__init_by_girders(girders=girders, dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
             else:
                 raise ValueError('parameter "girders" with problem, check if the girders are correct')
         else:
@@ -70,7 +77,7 @@ class Base:
         self.__matrix = self.__make_matrix()
         return
     
-    def __init_by_girders(self, girders, dtypes, func, famdata):
+    def __init_by_girders(self, girders, dtypes, func, famdata, valids_cond='std'):
         #print('starting by girders')
         __stdfunc = func
         _SECTS =[]
@@ -89,8 +96,8 @@ class Base:
         buttons = []
         for dtype in _TYPES:
             for girder_indices in girders:
-                buttons.append(_Button(dtype=dtype, indices=girder_indices, func=__stdfunc, famdata=famdata))
-
+                buttons.append(_Button(dtype=dtype, indices=girder_indices, func=__stdfunc, famdata=famdata, default_valids=valids_cond))
+        
         for button in buttons:
             if button.sect not in _SECTS: 
                 _SECTS.append(button.sect) 
@@ -132,7 +139,7 @@ class Base:
                     raise ValueError('list of indices with problem')
         return False
 
-    def __init_by_default(self, sects, elements, dtypes, exclude, reset_valids, func, famdata):
+    def __init_by_default(self, sects, elements, dtypes, exclude, valids_cond, func, famdata):
         #print('starting by default')
         if famdata == 'auto':
             famdat = _SI_FAMDATA
@@ -167,10 +174,7 @@ class Base:
             else:
                 raise TypeError('dtypes parameter not in correct format')
 
-        if reset_valids:
-            __default_valids = [self._SECTS, self._ELEMS, self._TYPES]
-        else:
-            __default_valids = 'std'
+        __default_valids = valids_cond
 
         self._SECTS, self._ELEMS, self._TYPES, = _SECTS, _ELEMS, _TYPES
         self.__buttons_list = self.__generate_buttons(exclude, famdata=famdat, stdfunc=func, default_valids=__default_valids)
@@ -179,13 +183,13 @@ class Base:
         sectypes = []
         for sect in self._SECTS:
             if sect in [2, 6, 10, 14, 18]:
-                sectypes.append((sect, 'LB-LP'))
+                sectypes.append((sect, _STD_SECT_TYPES[1]))
             elif sect in [3, 7, 11, 15, 19]:
-                sectypes.append((sect, 'LP-LB'))
+                sectypes.append((sect, _STD_SECT_TYPES[2]))
             elif sect in [4, 8, 12, 16, 20]:
-                sectypes.append((sect, 'LB-HA'))
+                sectypes.append((sect, _STD_SECT_TYPES[3]))
             elif sect in [1, 5, 9, 13, 17]:
-                sectypes.append((sect, 'HA-LB'))
+                sectypes.append((sect, _STD_SECT_TYPES[0]))
             else:
                 sectypes.append((sect, 'Not_Sirius_Sector'))
         return dict(sectypes)
