@@ -13,8 +13,8 @@ from .std_si_data import STD_ORBCORR_INV_JACOB_MAT as _inv_jacob
 _IJMAT = _inv_jacob()
 
 def s_iter(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
-    imat, _, smat, _, c = _calc_pinv(base.resp_mat(), svals, cut)
-    print("N_svals =", c)
+    imat, _, smat, _, num_svals = _calc_pinv(base.resp_mat(), svals, cut)
+    print("N_svals =", num_svals)
     deltas = _np.zeros(len(base.buttons()))
     disp = _np.zeros(160)
     if Orbcorr == "auto":
@@ -41,14 +41,14 @@ def s_iter(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto
     print(f"Corr. coef. = {_np.corrcoef(disp, disp_meta)[1,0]*100:.3f}%")
     _revoke_deltas(model, base)
     _rmk_correct_orbit(oc, inverse_jacobian_matrix=oc_inv_jacob_mat)
-    return disp, deltas, smat, c
+    return disp, deltas, smat, num_svals
 
 
 def f_iter_Y(
     model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"
 ):
-    imat, _, smat, _, c = _calc_pinv(base.resp_mat(), svals, cut)
-    # print("N_svals =", c)
+    imat, _, smat, _, num_svals = _calc_pinv(base.resp_mat(), svals, cut)
+    # print("N_svals =", num_svals)
     deltas = _np.zeros(len(base.buttons()))
     disp = _np.zeros(160)
     for i in range(n_iter):
@@ -72,7 +72,7 @@ def f_iter_Y(
     disp = _calc_vdisp(model)
     # print(f"RMS residue = {_calc_rms(disp-disp_meta):f}")
     # print(f"Corr. coef. = {_np.corrcoef(disp, disp_meta)[1,0]*100:.3f}%")
-    return disp, deltas, smat, c
+    return disp, deltas, smat, num_svals
 
 def sf_iter_Y(
     disp_meta, base, n_iter, svals="auto", cut=1e-3
@@ -93,8 +93,9 @@ def sf_iter_Y(
     return disp, deltas
 
 def dev_iter(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=True, svals="auto", cut=1e-3):
-    imat, _, smat, _, c = _calc_pinv(base.resp_mat(), svals, cut)
-    print("N_svals =", c)
+    """Returns: disp, deltas, smat, num_svals, rms_res, corr_coef"""
+    imat, _, smat, _, num_svals = _calc_pinv(base.resp_mat(), svals, cut)
+    print("N_svals =", num_svals)
     deltas = _np.zeros(len(base.buttons()))
     disp = _np.zeros(160)
     OrbcorrObj = _OrbitCorr(model, 'SI')
@@ -118,9 +119,11 @@ def dev_iter(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=Tru
         _apply_deltas(model=model, base=base, deltas=deltas);
         _rmk_correct_orbit(OrbcorrObj, inverse_jacobian_matrix=inv_jacob_mat); 
     disp = _calc_vdisp(model)
-    print(f"RMS residue = {_calc_rms(disp-disp_meta):f}")
-    print(f"Corr. coef. = {_np.corrcoef(disp, disp_meta)[1,0]*100:.3f}%")
+    rms_res = _calc_rms(disp-disp_meta)
+    corr_coef = _np.corrcoef(disp, disp_meta)[1,0]*100
+    print(f"RMS residue = {rms_res:f}")
+    print(f"Corr. coef. = {corr_coef:.3f}%")
     if not True_Apply:
         _revoke_deltas(model, base)
         _rmk_correct_orbit(OrbcorrObj, inverse_jacobian_matrix=inv_jacob_mat); 
-    return disp, deltas, smat, c
+    return disp, deltas, smat, num_svals, rms_res, corr_coef
