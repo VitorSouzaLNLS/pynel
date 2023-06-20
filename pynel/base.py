@@ -1,6 +1,6 @@
 """Module 'base' for the class object 'Base': a collection of 'Button'(s)"""
 
-from .data_test_fix import SI_FAMDATA as _SI_FAMDATA, STD_ELEMS as _STD_ELEMS, STD_SECTS as _STD_SECTS, STD_TYPES as _STD_TYPES, SI_GIRDERS as _SI_GIRDERS
+from .std_si_data import SI_FAMDATA as _SI_FAMDATA, STD_ELEMS as _STD_ELEMS, STD_SECTS as _STD_SECTS, STD_TYPES as _STD_TYPES, SI_GIRDERS as _SI_GIRDERS
 from .buttons import Button as _Button
 from .buttons import _STD_SECT_TYPES
 import numpy as _np

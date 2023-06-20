@@ -2,7 +2,7 @@
 
 import pyaccel as _pyaccel
 import numpy as _np
-from .data_test_fix import BPMIDX as _BPMIDX_
+from .std_si_data import BPMIDX as _BPMIDX_
 
 _BPMIDX = _BPMIDX_()
 
@@ -101,3 +101,26 @@ def rmk_correct_orbit(OrbitCorr_, inverse_jacobian_matrix=None, goal_orbit=None)
     else:
         return OrbitCorr_.CORR_STATUS.Fail
     return OrbitCorr_.CORR_STATUS.Sucess
+
+def calc_pinv(matrix, svals="auto", cut=1e-3):
+    u, smat, vh = _np.linalg.svd(matrix, full_matrices=False)
+    if svals == "auto":
+        ismat = []
+        c = 1
+        for s in smat:
+            if _np.log10(s / smat[0]) > _np.log10(cut):
+                ismat.append(1 / s)
+                c += 1
+            else:
+                ismat.append(0)
+    elif isinstance(svals, int):
+        ismat = 1 / smat
+        ismat[svals:] *= 0.0
+        c = svals
+    elif svals == "all":
+        ismat = 1 / smat
+        c = len(smat)
+    else:
+        raise ValueError('svals should be "auto" or an integer')
+    imat = vh.T @ _np.diag(ismat) @ u.T
+    return imat, u, smat, vh, c

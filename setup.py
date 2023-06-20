@@ -1,5 +1,5 @@
 #!/usr/bin/env python-sirius
-"""Setup module for pynel C package."""
+"""Setup for install/uninstall Pynel package."""
 
 from setuptools import setup
 # import pkg_resources
@@ -8,7 +8,7 @@ from setuptools import setup
 # def get_abs_path(relative):
 #     return pkg_resources.resource_filename(__name__, relative)
 
-version_path = '/opt/mamba_files/mamba/envs/sirius/repos/pynel/pynel/VERSION'
+version_path = '/pynel/VERSION'
 
 # with open(get_abs_path("README.md"), "r") as _f:
 #     _long_description = _f.read().strip()

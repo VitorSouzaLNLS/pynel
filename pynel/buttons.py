@@ -1,6 +1,6 @@
 """Module 'buttons' for the class Object Button"""
 
-from .data_test_fix import MODEL_BASE, SI_SECT_SPOS, STD_SECTS, STD_TYPES, STD_ELEMS_HALB, STD_ELEMS_LBLP, STD_ORBCORR_INV_JACOB_MAT, SI_FAMDATA, STD_GIRDER_NAMES
+from .std_si_data import MODEL_BASE, SI_SPOS, SI_SECT_SPOS, STD_SECTS, STD_TYPES, STD_ELEMS_HALB, STD_ELEMS_LBLP, STD_ORBCORR_INV_JACOB_MAT, SI_FAMDATA, STD_GIRDER_NAMES
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 import numpy as _np
 from copy import deepcopy as _dpcopy
@@ -10,6 +10,7 @@ from .misc_functions import rmk_correct_orbit
 
 
 _MODEL_BASE       = MODEL_BASE()
+_SI_SPOS          = SI_SPOS()
 _SI_SECT_SPOS     = SI_SECT_SPOS()
 _STD_GIRDER_NAMES = STD_GIRDER_NAMES()
 _STD_SECTS        = STD_SECTS()       
@@ -28,6 +29,8 @@ _STD_SECT_TYPES = ['HighBetaA -> LowBetaB',
 _SI_FAMDATA = SI_FAMDATA()
 
 class Button:
+    """Button object for storing a magnet (bname), it's sector (sect), it's indices 
+       and it's vertical dispersion signature due to an misaligment (dtype)"""
     def __init__(self, sect=None, dtype=None, name=None, default_valids='std', famdata='auto', func='testfunc', indices='auto'):
         if default_valids == 'std':
             default_valids = ['std', 'std', 'std']
@@ -62,7 +65,7 @@ class Button:
         name = ''
         sect = [-1]
         model_base = _MODEL_BASE
-        si_spos = SI_SPOS()
+        si_spos = _SI_SPOS
         si_sect_spos = _SI_SECT_SPOS
         if len(indices) == 1:
             i = indices[0]

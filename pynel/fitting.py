@@ -1,4 +1,4 @@
-"""'Iterations' module to run dispersion fitting and analisys"""
+"""Fitting module to run dispersion fitting and analisys"""
 
 import numpy as _np
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
@@ -7,12 +7,13 @@ from .misc_functions import calc_vdisp as _calc_vdisp
 from .misc_functions import rmk_correct_orbit as _rmk_correct_orbit 
 from .misc_functions import calc_rms as _calc_rms
 from .misc_functions import revoke_deltas as _revoke_deltas
-from .data_test_fix import STD_ORBCORR_INV_JACOB_MAT as _inv_jacob
+from .misc_functions import calc_pinv as _calc_pinv
+from .std_si_data import STD_ORBCORR_INV_JACOB_MAT as _inv_jacob
 
 _IJMAT = _inv_jacob()
 
 def s_iter(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
-    imat, _, smat, _, c = calc_pinv(base.resp_mat(), svals, cut)
+    imat, _, smat, _, c = _calc_pinv(base.resp_mat(), svals, cut)
     print("N_svals =", c)
     deltas = _np.zeros(len(base.buttons()))
     disp = _np.zeros(160)
@@ -46,7 +47,7 @@ def s_iter(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto
 def f_iter_Y(
     model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"
 ):
-    imat, _, smat, _, c = calc_pinv(base.resp_mat(), svals, cut)
+    imat, _, smat, _, c = _calc_pinv(base.resp_mat(), svals, cut)
     # print("N_svals =", c)
     deltas = _np.zeros(len(base.buttons()))
     disp = _np.zeros(160)
@@ -73,35 +74,10 @@ def f_iter_Y(
     # print(f"Corr. coef. = {_np.corrcoef(disp, disp_meta)[1,0]*100:.3f}%")
     return disp, deltas, smat, c
 
-
-def calc_pinv(matrix, svals="auto", cut=1e-3):
-    u, smat, vh = _np.linalg.svd(matrix, full_matrices=False)
-    if svals == "auto":
-        ismat = []
-        c = 1
-        for s in smat:
-            if _np.log10(s / smat[0]) > _np.log10(cut):
-                ismat.append(1 / s)
-                c += 1
-            else:
-                ismat.append(0)
-    elif isinstance(svals, int):
-        ismat = 1 / smat
-        ismat[svals:] *= 0.0
-        c = svals
-    elif svals == "all":
-        ismat = 1 / smat
-        c = len(smat)
-    else:
-        raise ValueError('svals should be "auto" or an integer')
-    imat = vh.T @ _np.diag(ismat) @ u.T
-    return imat, u, smat, vh, c
-
-
 def sf_iter_Y(
     disp_meta, base, n_iter, svals="auto", cut=1e-3
 ):
-    imat, *_ = calc_pinv(base.resp_mat(), svals, cut)
+    imat, *_ = _calc_pinv(base.resp_mat(), svals, cut)
     deltas = _np.zeros(len(base.buttons()))
     disp = _np.zeros(160)
 
@@ -117,7 +93,7 @@ def sf_iter_Y(
     return disp, deltas
 
 def dev_iter(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=True, svals="auto", cut=1e-3):
-    imat, _, smat, _, c = calc_pinv(base.resp_mat(), svals, cut)
+    imat, _, smat, _, c = _calc_pinv(base.resp_mat(), svals, cut)
     print("N_svals =", c)
     deltas = _np.zeros(len(base.buttons()))
     disp = _np.zeros(160)
