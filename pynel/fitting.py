@@ -92,7 +92,7 @@ def sf_iter_Y(
         disp += deltas[j] * b.signature
     return disp, deltas
 
-def dev_iter(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=True, svals="auto", cut=1e-3):
+def dev_fit(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=True, svals="auto", cut=1e-3):
     """Returns: disp, deltas, smat, num_svals, rms_res, corr_coef"""
     imat, _, smat, _, num_svals = _calc_pinv(base.resp_mat(), svals, cut)
     print("N_svals =", num_svals)
@@ -127,3 +127,42 @@ def dev_iter(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=Tru
         _revoke_deltas(model, base)
         _rmk_correct_orbit(OrbcorrObj, inverse_jacobian_matrix=inv_jacob_mat); 
     return disp, deltas, smat, num_svals, rms_res, corr_coef
+
+
+def fit(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
+    """
+    Function for fitting a 'meta vertical dispersion' into a model, using some Base.
+    > model: Accelerator
+    > disp_meta: Numpy array with shape (160,)
+    > base: Base object
+    Returns: disp, deltas, smat, num_svals, rms_res, corr_coef
+    """
+    imat, _, smat, _, num_svals = _calc_pinv(base.resp_mat(), svals, cut)
+    print("N_svals =", num_svals)
+    deltas = _np.zeros(len(base.buttons()))
+    disp = _np.zeros(160)
+    if Orbcorr == "auto":
+        oc = _OrbitCorr(model, acc="SI")
+        oc_jacob_mat = oc.get_jacobian_matrix()
+        oc_inv_jacob_mat = oc.get_inverse_matrix(jacobian_matrix=oc_jacob_mat)
+        oc.params.maxnriters = 100
+    elif isinstance(Orbcorr, tuple) and isinstance(Orbcorr[0], _OrbitCorr):
+        oc = Orbcorr[0]
+        oc_inv_jacob_mat = Orbcorr[1]
+    else:
+        raise ValueError(
+            "Orbcorr in wrong format: should be a tuple of (_OrbitCorr obj, inverse_jacobian_matrix)"
+        )
+    for i in range(n_iter):
+        disp = _calc_vdisp(model)
+        diff = disp_meta - disp
+        delta = imat @ diff
+        deltas += delta
+        _apply_deltas(model=model, base=base, deltas=deltas)
+        _rmk_correct_orbit(oc, inverse_jacobian_matrix=oc_inv_jacob_mat)
+    disp = _calc_vdisp(model)
+    print(f"RMS residue = {_calc_rms(disp-disp_meta):f}")
+    print(f"Corr. coef. = {_np.corrcoef(disp, disp_meta)[1,0]*100:.3f}%")
+    _revoke_deltas(model, base)
+    _rmk_correct_orbit(oc, inverse_jacobian_matrix=oc_inv_jacob_mat)
+    return disp, deltas, smat, num_svals
