@@ -111,22 +111,30 @@ def dev_fit(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=True
         pass
     else:
         raise ValueError('inv_jacob_mat should be "std", "auto", or a "numpy.ndarray" with shape: (320, 281)')
+    total_iter = 0
     for i in range(n_iter):
         disp = _calc_vdisp(model); 
         diff = disp_meta - disp;
         delta = imat @ diff; 
         deltas += delta
         _apply_deltas(model=model, base=base, deltas=deltas);
-        _rmk_correct_orbit(OrbcorrObj, inverse_jacobian_matrix=inv_jacob_mat); 
-    disp = _calc_vdisp(model)
-    rms_res = _calc_rms(disp-disp_meta)
-    corr_coef = _np.corrcoef(disp, disp_meta)[1,0]*100
+        try:
+            total_iter += 1
+            _rmk_correct_orbit(OrbcorrObj, inverse_jacobian_matrix=inv_jacob_mat); 
+        except:
+            break
+    try:
+        disp_exit = _calc_vdisp(model)
+    except: 
+        disp_exit = disp
+    rms_res = _calc_rms(disp_exit-disp_meta)
+    corr_coef = _np.corrcoef(disp_exit, disp_meta)[1,0]*100
     print(f"RMS residue = {rms_res:f}")
     print(f"Corr. coef. = {corr_coef:.3f}%")
     if not True_Apply:
         _revoke_deltas(model, base)
         _rmk_correct_orbit(OrbcorrObj, inverse_jacobian_matrix=inv_jacob_mat); 
-    return disp, deltas, smat, num_svals, rms_res, corr_coef
+    return disp_exit, deltas, smat, num_svals, rms_res, corr_coef, total_iter
 
 
 def fit(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
@@ -161,8 +169,10 @@ def fit(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
         _apply_deltas(model=model, base=base, deltas=deltas)
         _rmk_correct_orbit(oc, inverse_jacobian_matrix=oc_inv_jacob_mat)
     disp = _calc_vdisp(model)
-    print(f"RMS residue = {_calc_rms(disp-disp_meta):f}")
-    print(f"Corr. coef. = {_np.corrcoef(disp, disp_meta)[1,0]*100:.3f}%")
+    rms_res = _calc_rms(disp-disp_meta)
+    corr_coef = _np.corrcoef(disp, disp_meta)[1,0]*100
+    print(f"RMS residue = {rms_res:f}")
+    print(f"Corr. coef. = {corr_coef:.3f}%")
     _revoke_deltas(model, base)
     _rmk_correct_orbit(oc, inverse_jacobian_matrix=oc_inv_jacob_mat)
-    return disp, deltas, smat, num_svals
+    return disp, deltas, smat, num_svals, rms_res, corr_coef

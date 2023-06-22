@@ -5,6 +5,7 @@ from .buttons import Button as _Button
 from .buttons import _STD_SECT_TYPES
 import numpy as _np
 from copy import deepcopy as _dpcopy
+from time import time as _time
 
 _SI_FAMDATA, _STD_ELEMS, _STD_SECTS, _STD_TYPES, _SI_GIRDERS = _SI_FAMDATA(), _STD_ELEMS(), _STD_SECTS(), _STD_TYPES(), _SI_GIRDERS()
 
@@ -75,6 +76,8 @@ class Base:
             self.refine_base(update_buttons=True, flatten=True, return_removed=False, show_invalids=False)
 
         self.__matrix = self.__make_matrix()
+        _t = _time()
+        self.id = str(int((_t-int(_t))*1e6))
         return
     
     def __init_by_girders(self, girders, dtypes, func, famdata, valids_cond='std'):
