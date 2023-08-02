@@ -7,6 +7,7 @@ from copy import deepcopy as _dpcopy
 from .misc_functions import calc_vdisp as _calc_vdisp
 from .misc_functions import pick_func
 from .misc_functions import rmk_correct_orbit
+from pyaccel.optics import calc_twiss as _calc_twiss
 
 
 _MODEL_BASE       = MODEL_BASE()
@@ -19,7 +20,7 @@ _STD_ELEMS_HALB   = STD_ELEMS_HALB()
 _STD_ELEMS_LBLP   = STD_ELEMS_LBLP() 
 _OC_MODEL = MODEL_BASE() # new pymodels si model
 _OC = _OrbitCorr(_OC_MODEL, 'SI')
-_OC.params.maxnriters = 50
+_OC.params.maxnriters = 500
 _IJMAT            = STD_ORBCORR_INV_JACOB_MAT()
 # _IJMAT          = _OC.get_inverse_matrix(_OC.get_jacobian_matrix())
 _STD_SECT_TYPES = ['HighBetaA -> LowBetaB', 
@@ -109,12 +110,13 @@ class Button:
         self.signature = _np.array([0.0 for _ in range(160)])
         if self.check_isvalid():
             if func == 'vertical_disp':
-                temp = self.__calc_vertical_signature_oncorr()
+                temp = self.__calc_vertical_dispersion_signature()
             elif func == 'testfunc':
-                temp = self.__calc_test_func()
-                #temp = self.__calc_vertical_signature_offcorr()
+                temp = self.__calc_test_func_signature()
+            elif func == 'twiss':
+                temp = self.__calc_twiss_signatures()
             else:
-                raise KeyError('Invalid signature function. Try "vertical_disp" or "testfunc"')
+                raise KeyError('Invalid signature function. Try "vertical_disp", "testfunc" or "twiss"')
             if isinstance(temp, list) and len(temp) == 1:
                 if len(temp[0]) == 160:
                     self.signature = temp[0]
@@ -164,12 +166,13 @@ class Button:
             self.indices = self.__find_indices(fam)
 
             if func == 'vertical_disp':
-                temp = self.__calc_vertical_signature_oncorr()
+                temp = self.__calc_vertical_dispersion_signature()
             elif func == 'testfunc':
-                temp = self.__calc_test_func()
-                #temp = self.__calc_vertical_signature_offcorr()
+                temp = self.__calc_test_func_signature()
+            elif func == 'twiss':
+                temp = self.__calc_twiss_signatures()
             else:
-                raise KeyError('Invalid signature function. Try "vertical_disp" or "testfunc"')
+                raise KeyError('Invalid signature function. Try "vertical_disp", "testfunc" or "twiss"')
             
         if all(isinstance(l, list) for l in self.indices):
             if len(self.indices) == 1:
@@ -260,35 +263,11 @@ class Button:
         if len(invalid) == 0:
             print('(%d, %s, %s) ---> valid button' % (self.sect,self.dtype, self.bname))
         if len(invalid) == 1:
-            print('(%d, %s, %s) ---> invalid %s' % (self.sect, self.dtype,self.bname,  invalid[0]))
+            print('(%d, %s, %s) ---> invalid %s' % (self.sect, self.dtype, self.bname,  invalid[0]))
         if len(invalid) == 2:
             print('(%d, %s, %s) ---> invalid %s & %s' % (self.sect, self.dtype, self.bname, invalid[0], invalid[1]))
         if len(invalid) == 3:
             print('(%d, %s, %s) ---> completely invalid' % (self.sect, self.dtype, self.bname))
-        # if (self.bname not in self.__validnames) and (self.sect not in self.__validsects):
-        #     print('(%d, %s, %s) ---> invalid name & sect' %
-        #           (self.sect, self.bname, self.dtype))
-        # elif (self.bname not in self.__validnames) and (self.dtype not in self.__validtypes):
-        #     print('(%d, %s, %s) ---> invalid name & type' %
-        #           (self.sect, self.bname, self.dtype))
-        # elif (self.dtype not in self.__validtypes) and (self.sect not in self.__validsects):
-        #     print('(%d, %s, %s) ---> invalid type & sect' %
-        #           (self.sect, self.bname, self.dtype))
-        # elif (self.bname not in self.__validnames):
-        #     print('(%d, %s, %s) ---> invalid name' %
-        #           (self.sect, self.bname, self.dtype))
-        # elif (self.dtype not in self.__validtypes):
-        #     print('(%d, %s, %s) ---> invalid type' %
-        #           (self.sect, self.bname, self.dtype))
-        # elif (self.sect not in self.__validsects):
-        #     print('(%d, %s, %s) ---> invalid sect' %
-        #           (self.sect, self.bname, self.dtype))
-        # elif (self.bname not in self.__validnames) and (self.sect not in self.__validsects) and (self.dtype not in self.__validtypes):
-        #     print('(%d, %s, %s) ---> invalid name & type & sect' %
-        #           (self.sect, self.bname, self.dtype))
-        # else:
-        #     print('(%d, %s, %s) ---> valid button' %
-        #           (self.sect, self.bname, self.dtype))
 
     def __find_indices(self, famdata):
         famidx = famdata[self.bname]['index']
@@ -326,7 +305,7 @@ class Button:
         else:
             return 'Not_Sirius_Sector'
 
-    def __calc_test_func(self):
+    def __calc_test_func_signature(self):
         disp = []
         if all(isinstance(i, list) for i in self.indices):
             #print('list of lists')
@@ -341,7 +320,7 @@ class Button:
             raise ValueError('Indices with format problem')
         return disp
     
-    def __calc_vertical_signature_oncorr(self):
+    def __calc_vertical_dispersion_signature(self):
         func = pick_func(self.dtype)
         if all(isinstance(i, list) for i in self.indices): # list of list of ints
             indices = self.indices
@@ -371,6 +350,46 @@ class Button:
             func(_OC_MODEL, indices=ind, values=0.0)
         del disp_, disp_n, disp_p #, OC_, MODEL_
         return disp
+    
+    def __calc_twiss_signatures(self):
+        func = pick_func(self.dtype)
+        if all(isinstance(i, list) for i in self.indices): # list of list of ints
+            indices = self.indices
+        elif all(isinstance(i, (int, _np.integer)) for i in self.indices): # list of ints
+            indices = [self.indices]  
+        else:
+            raise ValueError('Indices with format problem')
+        twiss = []
+        # the calculation:
+        for ind in indices:
+            func(_OC_MODEL, indices=ind, values=+1e-6) # applying (SETTING) positive delta
+            rmk_correct_orbit(_OC, _IJMAT)
+            twiss_p = _calc_twiss(_OC_MODEL)[0]
+            
+            func(_OC_MODEL, indices=ind, values=-1e-6) # applying (SETTING) negative delta
+            rmk_correct_orbit(_OC, _IJMAT)
+            twiss_n = _calc_twiss(_OC_MODEL)[0]
+            
+            twiss.append({  'betax': ((twiss_p.betax  - twiss_n.betax )/(2e-6)).ravel(),
+                            'mux':   ((twiss_p.mux    - twiss_n.mux   )/(2e-6)).ravel(),
+                            'alphax':((twiss_p.alphax - twiss_n.alphax)/(2e-6)).ravel(),
+                            'betay': ((twiss_p.betay  - twiss_n.betay )/(2e-6)).ravel(),
+                            'alphay':((twiss_p.alphay - twiss_n.alphay)/(2e-6)).ravel(),
+                            'muy':   ((twiss_p.muy    - twiss_n.muy   )/(2e-6)).ravel(),                      
+                            'etax':  ((twiss_p.etax   - twiss_n.etax  )/(2e-6)).ravel(),
+                            'etapx': ((twiss_p.etapx  - twiss_n.etapx )/(2e-6)).ravel(),
+                            'etay':  ((twiss_p.etay   - twiss_n.etay  )/(2e-6)).ravel(),
+                            'etapy': ((twiss_p.etapy  - twiss_n.etapy )/(2e-6)).ravel(),
+                            'rx':    ((twiss_p.rx     - twiss_n.rx    )/(2e-6)).ravel(), 
+                            'px':    ((twiss_p.px     - twiss_n.px    )/(2e-6)).ravel(), 
+                            'ry':    ((twiss_p.ry     - twiss_n.ry    )/(2e-6)).ravel(), 
+                            'py':    ((twiss_p.py     - twiss_n.py    )/(2e-6)).ravel(), 
+                            'de':    ((twiss_p.de     - twiss_n.de    )/(2e-6)).ravel(), 
+                            'dl':    ((twiss_p.dl     - twiss_n.dl    )/(2e-6)).ravel()})
+
+            func(_OC_MODEL, indices=ind, values=0.0)
+        del twiss_p, twiss_n
+        return twiss
 
     def flatten(self):
         if not isinstance(self.indices, list):

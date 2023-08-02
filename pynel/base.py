@@ -6,8 +6,12 @@ from .buttons import _STD_SECT_TYPES
 import numpy as _np
 from copy import deepcopy as _dpcopy
 from time import time as _time
+from mathphys.functions import load_pickle as _load_pickle
 
 _SI_FAMDATA, _STD_ELEMS, _STD_SECTS, _STD_TYPES, _SI_GIRDERS = _SI_FAMDATA(), _STD_ELEMS(), _STD_SECTS(), _STD_TYPES(), _SI_GIRDERS()
+_FULL_VERTC_BASE = _load_pickle("path/to/base1")
+_FULL_TWISS_BASE = _load_pickle("path/to/base2")
+_FULL_BASE = {'vertical_disp':_FULL_VERTC_BASE, 'twiss':_FULL_TWISS_BASE}
 
 class Base:
     """
@@ -35,7 +39,8 @@ class Base:
     famdata: default='auto' --->  if auto: automatically collects the standart SIRIUS famdata, else: can pass other pre-rendered famdata
 
     """
-    def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, valids_cond=['std', 'std', 'std'], func='vertical_disp', famdata='auto', buttons=None, girders=None):
+    def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, valids_cond=['std', 'std', 'std'], func='vertical_disp', famdata='auto', buttons=None, girders=None, force_rebuild=False):
+        self.rebuild = force_rebuild
         if buttons == None and girders == None:
             self.__init_by_default(sects=sects, elements=elements, dtypes=dtypes, exclude=exclude, valids_cond=valids_cond, func=func, famdata=famdata)
 
@@ -228,8 +233,16 @@ class Base:
             for sect in self._SECTS:
                 for elem in self._ELEMS:
                     if (sect, dtype, elem) not in exparams:
-                        all_buttons.append(
-                            _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func=stdfunc))
+                        if self.rebuild == True:
+                            temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func=stdfunc)
+                        else:
+                            temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func='testfunc')
+                            if stdfunc in ['vertical_disp', 'twiss']:
+                                for button in _FULL_BASE[stdfunc]:
+                                    if temp_Button == button:
+                                        temp_Button.signature = button.signature
+
+                        all_buttons.append(temp_Button)
         #print(all_buttons)
         return all_buttons
 
