@@ -8,6 +8,7 @@ from .misc_functions import calc_vdisp as _calc_vdisp
 from .misc_functions import pick_func
 from .misc_functions import rmk_correct_orbit
 from pyaccel.optics import calc_twiss as _calc_twiss
+from copy import deepcopy as _deepcopy
 
 
 _MODEL_BASE       = MODEL_BASE()
@@ -370,25 +371,27 @@ class Button:
             rmk_correct_orbit(_OC, _IJMAT)
             twiss_n = _calc_twiss(_OC_MODEL)[0]
             
-            twiss.append({  'betax': ((twiss_p.betax  - twiss_n.betax )/(2e-6)).ravel(),
-                            'mux':   ((twiss_p.mux    - twiss_n.mux   )/(2e-6)).ravel(),
-                            'alphax':((twiss_p.alphax - twiss_n.alphax)/(2e-6)).ravel(),
-                            'betay': ((twiss_p.betay  - twiss_n.betay )/(2e-6)).ravel(),
-                            'alphay':((twiss_p.alphay - twiss_n.alphay)/(2e-6)).ravel(),
-                            'muy':   ((twiss_p.muy    - twiss_n.muy   )/(2e-6)).ravel(),                      
-                            'etax':  ((twiss_p.etax   - twiss_n.etax  )/(2e-6)).ravel(),
-                            'etapx': ((twiss_p.etapx  - twiss_n.etapx )/(2e-6)).ravel(),
-                            'etay':  ((twiss_p.etay   - twiss_n.etay  )/(2e-6)).ravel(),
-                            'etapy': ((twiss_p.etapy  - twiss_n.etapy )/(2e-6)).ravel(),
-                            'rx':    ((twiss_p.rx     - twiss_n.rx    )/(2e-6)).ravel(), 
-                            'px':    ((twiss_p.px     - twiss_n.px    )/(2e-6)).ravel(), 
-                            'ry':    ((twiss_p.ry     - twiss_n.ry    )/(2e-6)).ravel(), 
-                            'py':    ((twiss_p.py     - twiss_n.py    )/(2e-6)).ravel(), 
-                            'de':    ((twiss_p.de     - twiss_n.de    )/(2e-6)).ravel(), 
-                            'dl':    ((twiss_p.dl     - twiss_n.dl    )/(2e-6)).ravel()})
+            twiss_ = _deepcopy(twiss_p)
+            twiss_.betax  = ((twiss_p.betax  - twiss_n.betax )/(2e-6)).ravel()
+            twiss_.mux    = ((twiss_p.mux    - twiss_n.mux   )/(2e-6)).ravel()
+            twiss_.alphax = ((twiss_p.alphax - twiss_n.alphax)/(2e-6)).ravel()
+            twiss_.betay  = ((twiss_p.betay  - twiss_n.betay )/(2e-6)).ravel()
+            twiss_.alphay = ((twiss_p.alphay - twiss_n.alphay)/(2e-6)).ravel()
+            twiss_.muy    = ((twiss_p.muy    - twiss_n.muy   )/(2e-6)).ravel()                      
+            twiss_.etax   = ((twiss_p.etax   - twiss_n.etax  )/(2e-6)).ravel()
+            twiss_.etapx  = ((twiss_p.etapx  - twiss_n.etapx )/(2e-6)).ravel()
+            twiss_.etay   = ((twiss_p.etay   - twiss_n.etay  )/(2e-6)).ravel()
+            twiss_.etapy  = ((twiss_p.etapy  - twiss_n.etapy )/(2e-6)).ravel()
+            twiss_.rx     = ((twiss_p.rx     - twiss_n.rx    )/(2e-6)).ravel() 
+            twiss_.px     = ((twiss_p.px     - twiss_n.px    )/(2e-6)).ravel() 
+            twiss_.ry     = ((twiss_p.ry     - twiss_n.ry    )/(2e-6)).ravel() 
+            twiss_.py     = ((twiss_p.py     - twiss_n.py    )/(2e-6)).ravel() 
+            twiss_.de     = ((twiss_p.de     - twiss_n.de    )/(2e-6)).ravel() 
+            twiss_.dl     = ((twiss_p.dl     - twiss_n.dl    )/(2e-6)).ravel()
 
+            twiss.append(twiss_)
             func(_OC_MODEL, indices=ind, values=0.0)
-        del twiss_p, twiss_n
+        del twiss_p, twiss_n, twiss_
         return twiss
 
     def flatten(self):

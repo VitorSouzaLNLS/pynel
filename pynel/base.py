@@ -9,8 +9,8 @@ from time import time as _time
 from mathphys.functions import load_pickle as _load_pickle
 
 _SI_FAMDATA, _STD_ELEMS, _STD_SECTS, _STD_TYPES, _SI_GIRDERS = _SI_FAMDATA(), _STD_ELEMS(), _STD_SECTS(), _STD_TYPES(), _SI_GIRDERS()
-_FULL_VERTC_BASE = _load_pickle("path/to/base1")
-_FULL_TWISS_BASE = _load_pickle("path/to/base2")
+_FULL_VERTC_BASE = []#_load_pickle("path/to/base1")
+_FULL_TWISS_BASE = []#_load_pickle("path/to/base2")
 _FULL_BASE = {'vertical_disp':_FULL_VERTC_BASE, 'twiss':_FULL_TWISS_BASE}
 
 class Base:
