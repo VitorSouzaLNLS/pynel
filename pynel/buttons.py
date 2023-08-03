@@ -10,7 +10,6 @@ from .misc_functions import rmk_correct_orbit
 from pyaccel.optics import calc_twiss as _calc_twiss
 from copy import deepcopy as _deepcopy
 
-
 _MODEL_BASE       = MODEL_BASE()
 _SI_SPOS          = SI_SPOS()
 _SI_SECT_SPOS     = SI_SECT_SPOS()
@@ -29,11 +28,14 @@ _STD_SECT_TYPES = ['HighBetaA -> LowBetaB',
                     'LowBetaP -> LowBetaB', 
                     'LowBetaB -> HighBetaA']
 _SI_FAMDATA = SI_FAMDATA()
+_TWISS = _calc_twiss(_MODEL_BASE)[0]
+_ZERO_TWISS = _np.zeros_like(_TWISS)
 
 class Button:
     """Button object for storing a magnet (bname), it's sector (sect), it's indices 
        and it's vertical dispersion signature due to an misaligment (dtype)"""
     def __init__(self, sect=None, dtype=None, name=None, default_valids='std', famdata='auto', func='testfunc', indices='auto'):
+        self.func = func
         if default_valids == 'std':
             default_valids = ['std', 'std', 'std']
         elif default_valids == 'off':
@@ -88,11 +90,13 @@ class Button:
         if len(sect) > 2:
             #print(name, sect, indices)
             raise ValueError('some elements passed are from different sectors')
+        
         self.sect = sect[-1]
         self.bname = name
         self.fantasy_name = name
         self.dtype = dtype
         self.sectype = self.__sector_type()
+
         if default_valids[0] == 'off':
             self.__validsects = 'off'
         elif default_valids[0] == 'std':
@@ -363,38 +367,40 @@ class Button:
         twiss = []
         # the calculation:
         for ind in indices:
-            func(_OC_MODEL, indices=ind, values=+1e-6) # applying (SETTING) positive delta
-            rmk_correct_orbit(_OC, _IJMAT)
-            twiss_p = _calc_twiss(_OC_MODEL)[0]
+            # func(_OC_MODEL, indices=ind, values=+1e-6) # applying (SETTING) positive delta
+            # rmk_correct_orbit(_OC, _IJMAT)
+            # twiss_p = _calc_twiss(_OC_MODEL)[0]
             
-            func(_OC_MODEL, indices=ind, values=-1e-6) # applying (SETTING) negative delta
-            rmk_correct_orbit(_OC, _IJMAT)
-            twiss_n = _calc_twiss(_OC_MODEL)[0]
+            # func(_OC_MODEL, indices=ind, values=-1e-6) # applying (SETTING) negative delta
+            # rmk_correct_orbit(_OC, _IJMAT)
+            # twiss_n = _calc_twiss(_OC_MODEL)[0]
             
-            twiss_ = _deepcopy(twiss_p)
-            twiss_.betax  = ((twiss_p.betax  - twiss_n.betax )/(2e-6)).ravel()
-            twiss_.mux    = ((twiss_p.mux    - twiss_n.mux   )/(2e-6)).ravel()
-            twiss_.alphax = ((twiss_p.alphax - twiss_n.alphax)/(2e-6)).ravel()
-            twiss_.betay  = ((twiss_p.betay  - twiss_n.betay )/(2e-6)).ravel()
-            twiss_.alphay = ((twiss_p.alphay - twiss_n.alphay)/(2e-6)).ravel()
-            twiss_.muy    = ((twiss_p.muy    - twiss_n.muy   )/(2e-6)).ravel()                      
-            twiss_.etax   = ((twiss_p.etax   - twiss_n.etax  )/(2e-6)).ravel()
-            twiss_.etapx  = ((twiss_p.etapx  - twiss_n.etapx )/(2e-6)).ravel()
-            twiss_.etay   = ((twiss_p.etay   - twiss_n.etay  )/(2e-6)).ravel()
-            twiss_.etapy  = ((twiss_p.etapy  - twiss_n.etapy )/(2e-6)).ravel()
-            twiss_.rx     = ((twiss_p.rx     - twiss_n.rx    )/(2e-6)).ravel() 
-            twiss_.px     = ((twiss_p.px     - twiss_n.px    )/(2e-6)).ravel() 
-            twiss_.ry     = ((twiss_p.ry     - twiss_n.ry    )/(2e-6)).ravel() 
-            twiss_.py     = ((twiss_p.py     - twiss_n.py    )/(2e-6)).ravel() 
-            twiss_.de     = ((twiss_p.de     - twiss_n.de    )/(2e-6)).ravel() 
-            twiss_.dl     = ((twiss_p.dl     - twiss_n.dl    )/(2e-6)).ravel()
-
+            # twiss_ = _deepcopy(twiss_p)
+            # twiss_.betax  = ((twiss_p.betax  - twiss_n.betax )/(2e-6)).ravel()
+            # twiss_.mux    = ((twiss_p.mux    - twiss_n.mux   )/(2e-6)).ravel()
+            # twiss_.alphax = ((twiss_p.alphax - twiss_n.alphax)/(2e-6)).ravel()
+            # twiss_.betay  = ((twiss_p.betay  - twiss_n.betay )/(2e-6)).ravel()
+            # twiss_.alphay = ((twiss_p.alphay - twiss_n.alphay)/(2e-6)).ravel()
+            # twiss_.muy    = ((twiss_p.muy    - twiss_n.muy   )/(2e-6)).ravel()                      
+            # twiss_.etax   = ((twiss_p.etax   - twiss_n.etax  )/(2e-6)).ravel()
+            # twiss_.etapx  = ((twiss_p.etapx  - twiss_n.etapx )/(2e-6)).ravel()
+            # twiss_.etay   = ((twiss_p.etay   - twiss_n.etay  )/(2e-6)).ravel()
+            # twiss_.etapy  = ((twiss_p.etapy  - twiss_n.etapy )/(2e-6)).ravel()
+            # twiss_.rx     = ((twiss_p.rx     - twiss_n.rx    )/(2e-6)).ravel() 
+            # twiss_.px     = ((twiss_p.px     - twiss_n.px    )/(2e-6)).ravel() 
+            # twiss_.ry     = ((twiss_p.ry     - twiss_n.ry    )/(2e-6)).ravel() 
+            # twiss_.py     = ((twiss_p.py     - twiss_n.py    )/(2e-6)).ravel() 
+            # twiss_.de     = ((twiss_p.de     - twiss_n.de    )/(2e-6)).ravel() 
+            # twiss_.dl     = ((twiss_p.dl     - twiss_n.dl    )/(2e-6)).ravel()
+            twiss_ = _ZERO_TWISS
             twiss.append(twiss_)
-            func(_OC_MODEL, indices=ind, values=0.0)
-        del twiss_p, twiss_n, twiss_
+            #func(_OC_MODEL, indices=ind, values=0.0)
+        # del twiss_p, twiss_, twiss_n
         return twiss
+        # return self.__calc_test_func_signature()
 
     def flatten(self):
+        """Split the button if its contains two or more magnets"""
         if not isinstance(self.indices, list):
             raise ValueError('indices error')
         elif self.indices != []:

@@ -2,13 +2,13 @@
 """Setup for install/uninstall Pynel package."""
 
 from setuptools import setup
+import os
 # import pkg_resources
 
 
 # def get_abs_path(relative):
 #     return pkg_resources.resource_filename(__name__, relative)
-
-version_path = '/pynel/VERSION'
+version_path = os.path.join(os.path.dirname(__file__), "VERSION")
 
 # with open(get_abs_path("README.md"), "r") as _f:
 #     _long_description = _f.read().strip()
@@ -24,7 +24,7 @@ setup(
     version=__version__,
     author="Vitor Souza",
     author_email="vitor.souza@lnls.br",
-    description="Button and Base package",
+    description="Pynel package for studying and fitting the vertical dispersion function at accelerator models",
     # long_description=_long_description,
     # long_description_content_type="text/markdown",
     url="https://github.com/VitorSouzaLNLS/pynel",

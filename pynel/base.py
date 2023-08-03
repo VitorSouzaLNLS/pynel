@@ -1,17 +1,17 @@
 """Module 'base' for the class object 'Base': a collection of 'Button'(s)"""
 
-from .std_si_data import SI_FAMDATA as _SI_FAMDATA, STD_ELEMS as _STD_ELEMS, STD_SECTS as _STD_SECTS, STD_TYPES as _STD_TYPES, SI_GIRDERS as _SI_GIRDERS
+from .std_si_data import SI_FAMDATA as _SI_FAMDATA, STD_ELEMS as _STD_ELEMS, STD_SECTS as _STD_SECTS, STD_TYPES as _STD_TYPES, SI_GIRDERS as _SI_GIRDERS, BPMIDX as _BPMIDX
 from .buttons import Button as _Button
 from .buttons import _STD_SECT_TYPES
 import numpy as _np
 from copy import deepcopy as _dpcopy
 from time import time as _time
-from mathphys.functions import load_pickle as _load_pickle
+import os as _os
+from .std_si_data import COMPLETE_BUTTONS_VERTICAL_DISPERSION as _full_vertical_buttons
 
 _SI_FAMDATA, _STD_ELEMS, _STD_SECTS, _STD_TYPES, _SI_GIRDERS = _SI_FAMDATA(), _STD_ELEMS(), _STD_SECTS(), _STD_TYPES(), _SI_GIRDERS()
-_FULL_VERTC_BASE = []#_load_pickle("path/to/base1")
-_FULL_TWISS_BASE = []#_load_pickle("path/to/base2")
-_FULL_BASE = {'vertical_disp':_FULL_VERTC_BASE, 'twiss':_FULL_TWISS_BASE}
+_bpmidx = _BPMIDX()
+_FULL_VERTC_BUTTONS = _full_vertical_buttons()
 
 class Base:
     """
@@ -41,6 +41,10 @@ class Base:
     """
     def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, valids_cond=['std', 'std', 'std'], func='vertical_disp', famdata='auto', buttons=None, girders=None, force_rebuild=False):
         self.rebuild = force_rebuild
+        self.__func = func
+        self.__init_flag = None
+        if func == 'twiss':
+            print('The TWISS Base is deactivated...')
         if buttons == None and girders == None:
             self.__init_by_default(sects=sects, elements=elements, dtypes=dtypes, exclude=exclude, valids_cond=valids_cond, func=func, famdata=famdata)
 
@@ -57,14 +61,14 @@ class Base:
                 if all(isinstance(i, int) for i in girders):
                     #print('list of ints')
                     if girders in _SI_GIRDERS: # mark: problem rigidity
-                        self.__init_by_girders(girders=[girders], dtypes=dtypes, func=func, famdata=famdata)
+                        self.__init_by_girders(girders=[girders], dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
                     elif girders not in _SI_GIRDERS: # mark: problem developing
                         print('Warning: the girders passed are not part of Standart SIRIUS girders')
                         self.__init_by_girders(girders=[girders], dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
                 elif all(isinstance(i, list) for i in girders):
                     if all(girder in _SI_GIRDERS for girder in girders): # mark: problem rigidity
                         #print('list of list of ints')
-                        self.__init_by_girders(girders=girders, dtypes=dtypes, func=func, famdata=famdata)
+                        self.__init_by_girders(girders=girders, dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
                     elif True: #all(girder in _SI_GIRDERS for girder in girders): # mark: problem rigidity
                         print('Warning: the girders passed are not part of Standart SIRIUS girders')
                         self.__init_by_girders(girders=girders, dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
@@ -79,6 +83,15 @@ class Base:
 
         if auto_refine:
             self.refine_base(update_buttons=True, flatten=True, return_removed=False, show_invalids=False)
+
+        if self.rebuild == False and self.__init_flag == 'by_default':
+            temp_buttons = []
+            for button in self.__buttons_list:
+                for buttonV in _FULL_VERTC_BUTTONS:
+                    if button == buttonV:
+                        temp_buttons.append(buttonV)
+
+            self.__buttons_list = temp_buttons
 
         self.__matrix = self.__make_matrix()
         _t = _time()
@@ -114,6 +127,7 @@ class Base:
                 _ELEMS.append(button.bname)
 
         self._SECTS, self._ELEMS, self._TYPES, self.__buttons_list = _SECTS, _ELEMS, _TYPES, buttons
+        self.__init_flag = 'by_girders'
 
     def __init_by_buttons(self, buttons):
         #print('starting by buttons')
@@ -133,6 +147,7 @@ class Base:
                 _TYPES.append(button.dtype)
 
         self._SECTS, self._ELEMS, self._TYPES, self.__buttons_list = _SECTS, _ELEMS, _TYPES, buttons
+        self.__init_flag = 'by_buttons'
 
     def __check_isflat(self):
         for b in self.__buttons_list:
@@ -186,6 +201,7 @@ class Base:
 
         self._SECTS, self._ELEMS, self._TYPES, = _SECTS, _ELEMS, _TYPES
         self.__buttons_list = self.__generate_buttons(exclude, famdata=famdat, stdfunc=func, default_valids=__default_valids)
+        self.__init_flag = 'by_default'
 
     def __find_sector_types(self):
         sectypes = []
@@ -228,22 +244,22 @@ class Base:
         for exbutton in to_exclude:
             exparams.append((exbutton.sect, exbutton.dtype, exbutton.bname))
 
-        all_buttons = []
-        for dtype in self._TYPES:
-            for sect in self._SECTS:
-                for elem in self._ELEMS:
-                    if (sect, dtype, elem) not in exparams:
-                        if self.rebuild == True:
+        if self.rebuild == True:
+            all_buttons = []
+            for dtype in self._TYPES:
+                for sect in self._SECTS:
+                    for elem in self._ELEMS:
+                        if (sect, dtype, elem) not in exparams:
                             temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func=stdfunc)
-                        else:
+                            all_buttons.append(temp_Button)
+        elif self.rebuild == False:
+            all_buttons = []
+            for dtype in self._TYPES:
+                for sect in self._SECTS:
+                    for elem in self._ELEMS:
+                        if (sect, dtype, elem) not in exparams:
                             temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func='testfunc')
-                            if stdfunc in ['vertical_disp', 'twiss']:
-                                for button in _FULL_BASE[stdfunc]:
-                                    if temp_Button == button:
-                                        temp_Button.signature = button.signature
-
-                        all_buttons.append(temp_Button)
-        #print(all_buttons)
+                            all_buttons.append(temp_Button)
         return all_buttons
 
     def __exclude_buttons(self, par1, par2=None, par3=None):
@@ -371,9 +387,10 @@ class Base:
         self.__matrix = self.__make_matrix()
 
     def __make_matrix(self):
+        if self.__func == 'twiss':
+            return 0
         if len(self.__buttons_list) <= 0:
             print('Zero buttons, matrix not generated')
-
         elif self.__is_flat and self.__is_updated:
             M = _np.zeros((160, len(self.__buttons_list)))
             for i, b in enumerate(self.__buttons_list):
@@ -389,26 +406,32 @@ class Base:
             print('Please refine Base (update & flatten)')
             return 0
 
+    @property
     def buttons(self):
         """Returns the Base buttons list"""
         return self.__buttons_list
 
+    @property
     def sectors(self):
         """Returns the sectors presents in the Base"""
         return self._SECTS
 
+    @property
     def magnets(self):
         """Returns the magnets (elements) presents in the Base"""
         return self._ELEMS
 
+    @property
     def dtypes(self):
         """Returns the modification types used to construct the Base"""
         return self._TYPES
 
+    @property
     def sector_types(self):
         """Returns the sector-types presents in the Base"""
         return self._SECT_TYPES
 
+    @property
     def resp_mat(self):
         """Returns the Base Response Matrix"""
         return self.__matrix
@@ -433,4 +456,4 @@ class Base:
             return True
         return False
     
-__all__ = (Base, )
+__all__ = ("Base")

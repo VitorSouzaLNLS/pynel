@@ -16,22 +16,33 @@ def revoke_deltas(model, base):
     for i, button in enumerate(base.buttons()):
         pick_func(button.dtype)(model, indices=button.indices, values=0.0)
 
+# def pick_func(dtype):
+#     if dtype == 'dx':
+#         func = _pyaccel.lattice.set_error_misalignment_x
+#     elif dtype == 'dy':
+#         func = _pyaccel.lattice.set_error_misalignment_y
+#     elif dtype == 'dr':
+#         func = _pyaccel.lattice.set_error_rotation_roll
+#     elif dtype == 'drp':
+#         func = _pyaccel.lattice.set_error_rotation_pitch
+#     elif dtype == 'dry':
+#         func = _pyaccel.lattice.set_error_rotation_yaw
+#     # elif dtype == 'dksl':
+#     #     func = add_error_ksl
+#     else:
+#         raise TypeError('invalid dtype!')
+#     return func
+
+_FUNCS = {
+        'dx': _pyaccel.lattice.set_error_misalignment_x,
+        'dy': _pyaccel.lattice.set_error_misalignment_y,
+        'dr': _pyaccel.lattice.set_error_rotation_roll,
+        'drp': _pyaccel.lattice.set_error_rotation_pitch,
+        'dry': _pyaccel.lattice.set_error_rotation_yaw
+        }
+
 def pick_func(dtype):
-    if dtype == 'dx':
-        func = _pyaccel.lattice.set_error_misalignment_x
-    elif dtype == 'dy':
-        func = _pyaccel.lattice.set_error_misalignment_y
-    elif dtype == 'dr':
-        func = _pyaccel.lattice.set_error_rotation_roll
-    elif dtype == 'drp':
-        func = _pyaccel.lattice.set_error_rotation_pitch
-    elif dtype == 'dry':
-        func = _pyaccel.lattice.set_error_rotation_yaw
-    # elif dtype == 'dksl':
-    #     func = add_error_ksl
-    else:
-        raise TypeError('invalid dtype!')
-    return func
+    return _FUNCS[dtype]
 
 def add_error_ksl(lattice, indices, values):
     if isinstance(values, list):
@@ -124,3 +135,5 @@ def calc_pinv(matrix, svals="auto", cut=1e-3):
         raise ValueError('svals should be "auto" or an integer')
     imat = vh.T @ _np.diag(ismat) @ u.T
     return imat, u, smat, vh, c
+
+__all__ = ('calc_pinv', 'calc_rms', 'calc_disp', 'calc_vdisp', 'calc_hdisp', 'rmk_correct_orbit', 'apply_deltas', 'revoke_deltas')

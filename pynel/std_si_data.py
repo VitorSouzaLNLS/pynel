@@ -125,3 +125,10 @@ def STD_GIRDER_NAMES():
     in the imaginary example of a single 'BC' in an hipothetical girder
     """
     return []
+
+from mathphys.functions import load_pickle as _load_pickle
+_path_full_buttons = _os.path.join(_os.path.dirname(__file__), "full_buttons_03-08-23.pickle")
+_FULL_VERTC_BUTTONS = _load_pickle(_path_full_buttons)
+def COMPLETE_BUTTONS_VERTICAL_DISPERSION():
+    return deepcopy(_FULL_VERTC_BUTTONS)
+
