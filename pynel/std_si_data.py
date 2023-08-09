@@ -98,7 +98,7 @@ def STD_ELEMS():
             'SDB0','SDB1','SDB2','SDB3','SFB0','SFB1','SFB2',
             'SDP0','SDP1','SDP2','SDP3','SFP0','SFP1','SFP2']
 
-_sect_spos = [(518.3899/20)*i for i in range(21)]
+_sect_spos = [(_spos[-1]/20)*i for i in range(21)]
 def SI_SECT_SPOS():
     """Get the longitudinal coordinates at the start of each sector"""
     return deepcopy(_sect_spos)

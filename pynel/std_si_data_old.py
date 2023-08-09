@@ -1,3 +1,9 @@
+"""On construction: graphics module"""
+from .misc_functions import pick_func as _pick_func
+def plot_deltas(base, deltas):
+    return
+
+
 # """Standart 'PyModels: Sirius' model data collection"""
 
 # import pymodels as _pymodels

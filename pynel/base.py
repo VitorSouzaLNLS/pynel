@@ -43,6 +43,7 @@ class Base:
         self.rebuild = force_rebuild
         self.__func = func
         self.__init_flag = None
+        self.bpmidx = _bpmidx
         if func == 'twiss':
             print('The TWISS Base is deactivated...')
         if buttons == None and girders == None:

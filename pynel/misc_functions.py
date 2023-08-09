@@ -7,13 +7,13 @@ from .std_si_data import BPMIDX as _BPMIDX_
 _BPMIDX = _BPMIDX_()
 
 def apply_deltas(model, base, deltas):
-    for i, button in enumerate(base.buttons()):
+    for i, button in enumerate(base.buttons):
         # func = pick_func(button.dtype)
         # func(model, indices=button.indices, values=deltas[i])
         pick_func(button.dtype)(model, indices=button.indices, values=deltas[i])
 
 def revoke_deltas(model, base):
-    for i, button in enumerate(base.buttons()):
+    for i, button in enumerate(base.buttons):
         pick_func(button.dtype)(model, indices=button.indices, values=0.0)
 
 # def pick_func(dtype):
@@ -84,7 +84,7 @@ def calc_disp(model, indices='bpm'):
     orbn = _pyaccel.tracking.find_orbit4(model, indices=indices, energy_offset=-1e-6)
     return _np.hstack([(orbp[0,:] - orbn[0,:])/(2e-6), (orbp[2,:] - orbn[2,:])/(2e-6)])
 
-def rmk_correct_orbit(OrbitCorr_, inverse_jacobian_matrix=None, goal_orbit=None):
+def rmk_correct_orbit_old(OrbitCorr_, inverse_jacobian_matrix, goal_orbit=None):
     if goal_orbit is None:
         nbpm = len(OrbitCorr_.respm.bpm_idx)
         goal_orbit = _np.zeros(2 * nbpm)
@@ -112,6 +112,41 @@ def rmk_correct_orbit(OrbitCorr_, inverse_jacobian_matrix=None, goal_orbit=None)
     else:
         return OrbitCorr_.CORR_STATUS.Fail
     return OrbitCorr_.CORR_STATUS.Sucess
+
+def rmk_correct_orbit(OrbitCorr_obj, inverse_jacobian_matrix, goal_orbit=None):
+    """Orbit correction routine
+        --> returns: 
+        0 = Tolerance Fail 
+        1 = Done 
+        2 = Convergence Fail
+    """
+    if goal_orbit is None:
+        nbpm = len(OrbitCorr_obj.respm.bpm_idx)
+        goal_orbit = _np.zeros(2 * nbpm)
+    ismat = inverse_jacobian_matrix
+    orb = OrbitCorr_obj.get_orbit()
+    dorb = orb - goal_orbit
+    bestfigm = OrbitCorr_obj.get_figm(dorb)
+    if bestfigm < OrbitCorr_obj.params.tolerance:
+        return OrbitCorr_obj.CORR_STATUS.Sucess#, OrbitCorr_obj.get_kicks()
+
+    for j in range(OrbitCorr_obj.params.maxnriters):
+        dkicks = -1*_np.dot(ismat, dorb)
+        kicks = OrbitCorr_obj._process_kicks(dkicks)
+        OrbitCorr_obj.set_kicks(kicks)
+        orb = OrbitCorr_obj.get_orbit()
+        dorb = orb - goal_orbit
+        figm = OrbitCorr_obj.get_figm(dorb)
+        diff_figm = _np.abs(bestfigm - figm)
+        if figm < bestfigm:
+            bestfigm = figm
+        else:
+            return OrbitCorr_obj.CORR_STATUS.Convergence_fail#, OrbitCorr_obj.get_kicks()
+        if diff_figm < OrbitCorr_obj.params.tolerance:
+            break
+    else:
+        return OrbitCorr_obj.CORR_STATUS.Tolerance_fail#, OrbitCorr_obj.get_kicks()
+    return OrbitCorr_obj.CORR_STATUS.Sucess#, OrbitCorr_obj.get_kicks()
 
 def calc_pinv(matrix, svals="auto", cut=1e-3):
     u, smat, vh = _np.linalg.svd(matrix, full_matrices=False)
