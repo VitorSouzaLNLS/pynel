@@ -421,6 +421,14 @@ class Base:
     def magnets(self):
         """Returns the magnets (elements) presents in the Base"""
         return self._ELEMS
+    
+    @property
+    def named_magnets(self):
+        _SPLIT_ELEMS = []
+        for b in self.buttons:
+            if b.fantasy_name not in _SPLIT_ELEMS:
+                _SPLIT_ELEMS.append(b.fantasy_name)
+        return _SPLIT_ELEMS
 
     @property
     def dtypes(self):
