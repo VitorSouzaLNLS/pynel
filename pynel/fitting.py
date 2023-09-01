@@ -4,7 +4,7 @@ import numpy as _np
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 from .misc_functions import apply_deltas as _apply_deltas
 from .misc_functions import calc_vdisp as _calc_vdisp
-from .misc_functions import rmk_correct_orbit as _rmk_correct_orbit # new orbcorr system DONE=1, CONVERGENCE=2, TOLERANCE=0 mod
+from .misc_functions import rmk_correct_orbit as _rmk_correct_orbit
 from .misc_functions import calc_rms as _calc_rms
 from .misc_functions import revoke_deltas as _revoke_deltas
 from .misc_functions import calc_pinv as _calc_pinv

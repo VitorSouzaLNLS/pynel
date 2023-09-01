@@ -6,43 +6,27 @@ from .std_si_data import BPMIDX as _BPMIDX_
 
 _BPMIDX = _BPMIDX_()
 
-def apply_deltas(model, base, deltas):
-    for i, button in enumerate(base.buttons):
-        # func = pick_func(button.dtype)
-        # func(model, indices=button.indices, values=deltas[i])
-        pick_func(button.dtype)(model, indices=button.indices, values=deltas[i])
-
-def revoke_deltas(model, base):
-    for i, button in enumerate(base.buttons):
-        pick_func(button.dtype)(model, indices=button.indices, values=0.0)
-
-# def pick_func(dtype):
-#     if dtype == 'dx':
-#         func = _pyaccel.lattice.set_error_misalignment_x
-#     elif dtype == 'dy':
-#         func = _pyaccel.lattice.set_error_misalignment_y
-#     elif dtype == 'dr':
-#         func = _pyaccel.lattice.set_error_rotation_roll
-#     elif dtype == 'drp':
-#         func = _pyaccel.lattice.set_error_rotation_pitch
-#     elif dtype == 'dry':
-#         func = _pyaccel.lattice.set_error_rotation_yaw
-#     # elif dtype == 'dksl':
-#     #     func = add_error_ksl
-#     else:
-#         raise TypeError('invalid dtype!')
-#     return func
-
 _FUNCS = {
-        'dx': _pyaccel.lattice.set_error_misalignment_x,
-        'dy': _pyaccel.lattice.set_error_misalignment_y,
-        'dr': _pyaccel.lattice.set_error_rotation_roll,
-        'drp': _pyaccel.lattice.set_error_rotation_pitch,
+        'dx': _pyaccel.lattice.set_error_misalignment_x ,
+        'dy': _pyaccel.lattice.set_error_misalignment_y ,
+        'dr': _pyaccel.lattice.set_error_rotation_roll ,
+        'drp': _pyaccel.lattice.set_error_rotation_pitch ,
         'dry': _pyaccel.lattice.set_error_rotation_yaw
         }
 
-def pick_func(dtype):
-    return _FUNCS[dtype]
+def revoke_deltas(model, base):
+    for i, button in enumerate(base.buttons):
+        _FUNCS[button.dtype](model, indices=button.indices, values=0.0)
+
+def apply_deltas(model, base, deltas, condition=0):
+    for i, button in enumerate(base.buttons):
+        # func = pick_func(button.dtype)
+        # func(model, indices=button.indices, values=deltas[i])
+        # print(button.indices[0], button.dtype, deltas[i])
+        val = 0.0
+        if abs(deltas[i])>condition:
+            val = deltas[i]
+        _FUNCS[button.dtype](model, indices=button.indices, values=val)
 
 def add_error_ksl(lattice, indices, values):
     if isinstance(values, list):
@@ -84,69 +68,50 @@ def calc_disp(model, indices='bpm'):
     orbn = _pyaccel.tracking.find_orbit4(model, indices=indices, energy_offset=-1e-6)
     return _np.hstack([(orbp[0,:] - orbn[0,:])/(2e-6), (orbp[2,:] - orbn[2,:])/(2e-6)])
 
-def rmk_correct_orbit_old(OrbitCorr_, inverse_jacobian_matrix, goal_orbit=None):
-    if goal_orbit is None:
-        nbpm = len(OrbitCorr_.respm.bpm_idx)
-        goal_orbit = _np.zeros(2 * nbpm)
-
-    ismat = inverse_jacobian_matrix
-
-    orb = OrbitCorr_.get_orbit()
-    dorb = orb - goal_orbit
-    bestfigm = OrbitCorr_.get_figm(dorb)
-    if bestfigm < OrbitCorr_.params.tolerance:
-        return OrbitCorr_.CORR_STATUS.Sucess
-
-    for _ in range(OrbitCorr_.params.maxnriters):
-        dkicks = -1*_np.dot(ismat, dorb)
-        kicks = OrbitCorr_._process_kicks(dkicks)
-        OrbitCorr_.set_kicks(kicks)
-        orb = OrbitCorr_.get_orbit()
-        dorb = orb - goal_orbit
-        figm = OrbitCorr_.get_figm(dorb)
-        diff_figm = _np.abs(bestfigm - figm)
-        if figm < bestfigm:
-            bestfigm = figm
-        if diff_figm < OrbitCorr_.params.tolerance:
-            break
-    else:
-        return OrbitCorr_.CORR_STATUS.Fail
-    return OrbitCorr_.CORR_STATUS.Sucess
-
-def rmk_correct_orbit(OrbitCorr_obj, inverse_jacobian_matrix, goal_orbit=None):
+def rmk_correct_orbit(OrbitCorr_obj, jacobian_matrix, goal_orbit=None):
     """Orbit correction routine
         --> returns: 
-        0 = Tolerance Fail 
-        1 = Done 
+        0 = Succes
+        1 = Orb RMS Warning
         2 = Convergence Fail
+        3 = Saturation Fail
     """
     if goal_orbit is None:
         nbpm = len(OrbitCorr_obj.respm.bpm_idx)
-        goal_orbit = _np.zeros(2 * nbpm)
-    ismat = inverse_jacobian_matrix
+        goal_orbit = _np.zeros(2 * nbpm, dtype=float)
+
+    jmat = jacobian_matrix
+    if jmat is None:
+        jmat = OrbitCorr_obj.get_jacobian_matrix()
+
+    ismat = OrbitCorr_obj.get_inverse_matrix(jmat)
+
     orb = OrbitCorr_obj.get_orbit()
     dorb = orb - goal_orbit
     bestfigm = OrbitCorr_obj.get_figm(dorb)
-    if bestfigm < OrbitCorr_obj.params.tolerance:
-        return OrbitCorr_obj.CORR_STATUS.Sucess#, OrbitCorr_obj.get_kicks()
-
-    for j in range(OrbitCorr_obj.params.maxnriters):
+    maxit = 0
+    for _ in range(OrbitCorr_obj.params.maxnriters):
         dkicks = -1*_np.dot(ismat, dorb)
-        kicks = OrbitCorr_obj._process_kicks(dkicks)
+        kicks, saturation_flag = OrbitCorr_obj._process_kicks(dkicks)
+        if saturation_flag:
+            return OrbitCorr_obj.CORR_STATUS.SaturationFail, maxit
         OrbitCorr_obj.set_kicks(kicks)
+        maxit += 1
         orb = OrbitCorr_obj.get_orbit()
         dorb = orb - goal_orbit
         figm = OrbitCorr_obj.get_figm(dorb)
         diff_figm = _np.abs(bestfigm - figm)
         if figm < bestfigm:
             bestfigm = figm
-        else:
-            return OrbitCorr_obj.CORR_STATUS.Convergence_fail#, OrbitCorr_obj.get_kicks()
-        if diff_figm < OrbitCorr_obj.params.tolerance:
-            break
-    else:
-        return OrbitCorr_obj.CORR_STATUS.Tolerance_fail#, OrbitCorr_obj.get_kicks()
-    return OrbitCorr_obj.CORR_STATUS.Sucess#, OrbitCorr_obj.get_kicks()
+        if diff_figm < OrbitCorr_obj.params.convergencetol:
+            if bestfigm <= OrbitCorr_obj.params.orbrmswarnthres:
+                return OrbitCorr_obj.CORR_STATUS.Sucess, maxit
+            else:
+                return OrbitCorr_obj.CORR_STATUS.OrbRMSWarning, maxit
+        if OrbitCorr_obj.params.updatejacobian:
+            jmat = OrbitCorr_obj.get_jacobian_matrix()
+            ismat = OrbitCorr_obj.get_inverse_matrix(jmat)
+    return OrbitCorr_obj.CORR_STATUS.ConvergenceFail, maxit
 
 def calc_pinv(matrix, svals="auto", cut=1e-3):
     u, smat, vh = _np.linalg.svd(matrix, full_matrices=False)

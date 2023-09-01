@@ -5,7 +5,7 @@ from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 import numpy as _np
 from copy import deepcopy as _dpcopy
 from .misc_functions import calc_vdisp as _calc_vdisp
-from .misc_functions import pick_func
+from .misc_functions import _FUNCS
 from .misc_functions import rmk_correct_orbit
 from pyaccel.optics import calc_twiss as _calc_twiss
 from copy import deepcopy as _deepcopy
@@ -20,8 +20,11 @@ _STD_ELEMS_HALB   = STD_ELEMS_HALB()
 _STD_ELEMS_LBLP   = STD_ELEMS_LBLP() 
 _OC_MODEL = MODEL_BASE() # new pymodels si model
 _OC = _OrbitCorr(_OC_MODEL, 'SI')
-_OC.params.maxnriters = 500
-_IJMAT            = STD_ORBCORR_INV_JACOB_MAT()
+_OC.params.maxnriters = 30
+_OC.params.convergencetol = 1e-9
+_OC.params.use6dorb = True
+_JAC = _OC.get_jacobian_matrix()
+# _IJMAT            = STD_ORBCORR_INV_JACOB_MAT()
 # _IJMAT          = _OC.get_inverse_matrix(_OC.get_jacobian_matrix())
 _STD_SECT_TYPES = ['HighBetaA -> LowBetaB', 
                     'LowBetaB -> LowBetaP', 
@@ -30,6 +33,13 @@ _STD_SECT_TYPES = ['HighBetaA -> LowBetaB',
 _SI_FAMDATA = SI_FAMDATA()
 _TWISS = _calc_twiss(_MODEL_BASE)[0]
 _ZERO_TWISS = _np.zeros_like(_TWISS)
+_DELTAS ={
+        'dx':  {'B':40e-6, 'Q':40e-6, 'S':40e-6},
+        'dy':  {'B':40e-6, 'Q':40e-6, 'S':40e-6},
+        'dr':  {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3},
+        'drp': {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3},
+        'dry': {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3}
+        }
 
 class Button:
     """Button object for storing a magnet (bname), it's sector (sect), it's indices 
@@ -257,7 +267,6 @@ class Button:
             validify[2] = True
         return validify
         
-
     def show_invalid_parameters(self):
         valids = self.__check_isvalid_for_printing()
         invalid = []
@@ -326,7 +335,7 @@ class Button:
         return disp
     
     def __calc_vertical_dispersion_signature(self):
-        func = pick_func(self.dtype)
+        func = _FUNCS[self.dtype]
         if all(isinstance(i, list) for i in self.indices): # list of list of ints
             indices = self.indices
         elif all(isinstance(i, (int, _np.integer)) for i in self.indices): # list of ints
@@ -339,25 +348,30 @@ class Button:
         # MODEL_ = MODEL_BASE() # new pymodels si model
         # OC_ = _OrbitCorr(MODEL_, 'SI')
         #_IJMAT_  = OC_.get_inverse_matrix(OC_.get_jacobian_matrix())
+        delta = _DELTAS[self.dtype][self.bname[0]]
         for ind in indices:
-            func(_OC_MODEL, indices=ind, values=+1e-6) # applying (SETTING) positive delta
-            rmk_correct_orbit(_OC, _IJMAT)
+            func(_OC_MODEL, indices=ind, values=+delta/2) # applying (SETTING) positive delta
+            f = rmk_correct_orbit(_OC, _JAC)
+            #print(self.indices[0], 'corr +', f, end=' ')
             disp_p = _calc_vdisp(_OC_MODEL)
             
-            func(_OC_MODEL, indices=ind, values=-1e-6) # applying (SETTING) negative delta
-            rmk_correct_orbit(_OC, _IJMAT)
+            func(_OC_MODEL, indices=ind, values=-delta/2) # applying (SETTING) negative delta
+            f = rmk_correct_orbit(_OC, _JAC)
+            #print(self.indices[0], 'corr -', f, end='')
             disp_n = _calc_vdisp(_OC_MODEL)
             
-            disp_ = (disp_p - disp_n)/(2e-6)
+            disp_ = (disp_p - disp_n)/delta
             
             disp.append(disp_.ravel())
 
             func(_OC_MODEL, indices=ind, values=0.0)
+            # f = rmk_correct_orbit(_OC, _JAC)
+            #print()
         del disp_, disp_n, disp_p #, OC_, MODEL_
         return disp
     
     def __calc_twiss_signatures(self):
-        func = pick_func(self.dtype)
+        func = _FUNCS[self.dtype]
         if all(isinstance(i, list) for i in self.indices): # list of list of ints
             indices = self.indices
         elif all(isinstance(i, (int, _np.integer)) for i in self.indices): # list of ints
