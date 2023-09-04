@@ -18,15 +18,20 @@ def revoke_deltas(model, base):
     for i, button in enumerate(base.buttons):
         _FUNCS[button.dtype](model, indices=button.indices, values=0.0)
 
+def apply_delta(model, button, delta):
+    if isinstance(delta, (_np.int_, _np.float_, float, int)):
+        _FUNCS[button.dtype](model, indices=button.indices, values=delta)
+    elif len(delta) == len(button.indices):
+        _FUNCS[button.dtype](model, indices=button.indices, values=delta)
+    else:
+        raise ValueError('problem with deltas')
+    
 def apply_deltas(model, base, deltas, condition=0):
+    if len(deltas) != len(base):
+        raise ValueError('"deltas" size is incompatible with "base" size')
     for i, button in enumerate(base.buttons):
-        # func = pick_func(button.dtype)
-        # func(model, indices=button.indices, values=deltas[i])
-        # print(button.indices[0], button.dtype, deltas[i])
-        val = 0.0
         if abs(deltas[i])>condition:
-            val = deltas[i]
-        _FUNCS[button.dtype](model, indices=button.indices, values=val)
+            apply_delta(model, button, deltas[i])
 
 def add_error_ksl(lattice, indices, values):
     if isinstance(values, list):
