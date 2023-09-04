@@ -23,6 +23,7 @@ _OC = _OrbitCorr(_OC_MODEL, 'SI')
 _OC.params.maxnriters = 30
 _OC.params.convergencetol = 1e-9
 _OC.params.use6dorb = True
+_INIT_KICKS = _OC.get_kicks()
 _JAC = _OC.get_jacobian_matrix()
 # _IJMAT            = STD_ORBCORR_INV_JACOB_MAT()
 # _IJMAT          = _OC.get_inverse_matrix(_OC.get_jacobian_matrix())
@@ -350,24 +351,26 @@ class Button:
         #_IJMAT_  = OC_.get_inverse_matrix(OC_.get_jacobian_matrix())
         delta = _DELTAS[self.dtype][self.bname[0]]
         for ind in indices:
-            func(_OC_MODEL, indices=ind, values=+delta/2) # applying (SETTING) positive delta
-            f = rmk_correct_orbit(_OC, _JAC)
+            func(_OC_MODEL, indices=ind, values=delta) # applying (SETTING) positive delta
+            rmk_correct_orbit(_OC, _JAC)
             #print(self.indices[0], 'corr +', f, end=' ')
             disp_p = _calc_vdisp(_OC_MODEL)
             
-            func(_OC_MODEL, indices=ind, values=-delta/2) # applying (SETTING) negative delta
-            f = rmk_correct_orbit(_OC, _JAC)
-            #print(self.indices[0], 'corr -', f, end='')
-            disp_n = _calc_vdisp(_OC_MODEL)
+            # *** modded way to compute signature: approximation to dn/dp = n(p)/p
+            # func(_OC_MODEL, indices=ind, values=-delta/2) # applying (SETTING) negative delta
+            # f = rmk_correct_orbit(_OC, _JAC)
+            # #print(self.indices[0], 'corr -', f, end='')
+            # disp_n = _calc_vdisp(_OC_MODEL)
             
-            disp_ = (disp_p - disp_n)/delta
+            #disp_ = (disp_p - disp_n)/delta
             
-            disp.append(disp_.ravel())
+            disp.append((disp_p/delta).ravel())
 
             func(_OC_MODEL, indices=ind, values=0.0)
-            # f = rmk_correct_orbit(_OC, _JAC)
+            #rmk_correct_orbit(_OC, _JAC)
+            _OC.set_kicks(_INIT_KICKS)
             #print()
-        del disp_, disp_n, disp_p #, OC_, MODEL_
+        #del disp_, disp_n, disp_p #, OC_, MODEL_
         return disp
     
     def __calc_twiss_signatures(self):
