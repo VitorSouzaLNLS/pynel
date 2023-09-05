@@ -11,4 +11,4 @@ To install the package:
 Author: Vitor Davi de Souza.
 Contact: vitor.souza@lnls.br, vitinhodavi@usp.br.
 
--> Last mod: 03/08/23
+-> Last mod: 05/09/23

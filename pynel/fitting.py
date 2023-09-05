@@ -1,5 +1,7 @@
 """Fitting module to run dispersion fitting and analisys"""
 
+print('"Fitting" module is under reconstruction, functions shouldnt work as expected')
+
 import numpy as _np
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 from .misc_functions import apply_deltas as _apply_deltas
@@ -42,7 +44,6 @@ def s_iter(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto
     _revoke_deltas(model, base)
     _rmk_correct_orbit(oc, inverse_jacobian_matrix=oc_inv_jacob_mat)
     return disp, deltas, smat, num_svals
-
 
 def f_iter_Y(
     model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"
@@ -135,7 +136,6 @@ def dev_fit(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=True
         _revoke_deltas(model, base)
         _rmk_correct_orbit(OrbcorrObj, inverse_jacobian_matrix=inv_jacob_mat); 
     return disp_exit, deltas, smat, num_svals, rms_res, corr_coef, total_iter
-
 
 def fit(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
     """

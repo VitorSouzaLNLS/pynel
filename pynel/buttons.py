@@ -1,21 +1,22 @@
 """Module 'buttons' for the class Object Button"""
 
-from .std_si_data import MODEL_BASE, SI_SPOS, SI_SECT_SPOS, STD_SECTS, STD_TYPES, STD_ELEMS_HALB, STD_ELEMS_LBLP, STD_ORBCORR_INV_JACOB_MAT, SI_FAMDATA, STD_GIRDER_NAMES
+from .std_si_data import MODEL_BASE, SI_SPOS, SI_SECT_SPOS, \
+    STD_SECTS, STD_TYPES, STD_ELEMS_HALB, STD_ELEMS_LBLP, \
+    SI_FAMDATA, SI_SECTOR_TYPES, STD_ERROR_DELTAS, STD_ELEMS, \
+    STD_ORBCORR_JACOBIAN
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 import numpy as _np
-from copy import deepcopy as _dpcopy
-from .misc_functions import calc_vdisp as _calc_vdisp
-from .misc_functions import _FUNCS
-from .misc_functions import rmk_correct_orbit
-from pyaccel.optics import calc_twiss as _calc_twiss
 from copy import deepcopy as _deepcopy
+from .misc_functions import calc_vdisp as _calc_vdisp, _FUNCS, rmk_correct_orbit
 
-_MODEL_BASE       = MODEL_BASE()
+# *** Not being used ***
+# from pyaccel.optics import calc_twiss as _calc_twiss
+
 _SI_SPOS          = SI_SPOS()
 _SI_SECT_SPOS     = SI_SECT_SPOS()
-_STD_GIRDER_NAMES = STD_GIRDER_NAMES()
 _STD_SECTS        = STD_SECTS()       
 _STD_TYPES        = STD_TYPES()       
+_STD_ELEMS        = STD_ELEMS()
 _STD_ELEMS_HALB   = STD_ELEMS_HALB() 
 _STD_ELEMS_LBLP   = STD_ELEMS_LBLP() 
 _OC_MODEL = MODEL_BASE() # new pymodels si model
@@ -23,24 +24,17 @@ _OC = _OrbitCorr(_OC_MODEL, 'SI')
 _OC.params.maxnriters = 30
 _OC.params.convergencetol = 1e-9
 _OC.params.use6dorb = True
-_INIT_KICKS = _OC.get_kicks()
-_JAC = _OC.get_jacobian_matrix()
-# _IJMAT            = STD_ORBCORR_INV_JACOB_MAT()
-# _IJMAT          = _OC.get_inverse_matrix(_OC.get_jacobian_matrix())
-_STD_SECT_TYPES = ['HighBetaA -> LowBetaB', 
-                    'LowBetaB -> LowBetaP', 
-                    'LowBetaP -> LowBetaB', 
-                    'LowBetaB -> HighBetaA']
+_INIT_KICKS = _OC.get_kicks() # zeros + rf_freq
+_JAC = STD_ORBCORR_JACOBIAN()
+#_JAC = _OC.get_jacobian_matrix()
+_STD_SECT_TYPES = SI_SECTOR_TYPES()
 _SI_FAMDATA = SI_FAMDATA()
-_TWISS = _calc_twiss(_MODEL_BASE)[0]
-_ZERO_TWISS = _np.zeros_like(_TWISS)
-_DELTAS ={
-        'dx':  {'B':40e-6, 'Q':40e-6, 'S':40e-6},
-        'dy':  {'B':40e-6, 'Q':40e-6, 'S':40e-6},
-        'dr':  {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3},
-        'drp': {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3},
-        'dry': {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3}
-        }
+
+# *** Not being used ***
+# _TWISS = _calc_twiss(_MODEL_BASE)[0]
+# _ZERO_TWISS = _np.zeros_like(_TWISS)
+
+_DELTAS = STD_ERROR_DELTAS()
 
 class Button:
     """Button object for storing a magnet (bname), it's sector (sect), it's indices 
@@ -79,29 +73,21 @@ class Button:
         self.indices = indices
         name = ''
         sect = [-1]
-        model_base = _MODEL_BASE
+        model_base = _OC_MODEL
         si_spos = _SI_SPOS
         si_sect_spos = _SI_SECT_SPOS
         if len(indices) == 1:
             i = indices[0]
             name = model_base[i].fam_name
-            #pos = si_spos[i]
             for j in range(20):
                 if si_sect_spos[j] <= si_spos[i] < si_sect_spos[j+1]:
                     if (j+1) not in sect:
                         sect.append(j+1)
         else:
-            for i in indices:
-                name += '_'+model_base[i].fam_name # should agree with the std girders names
-                #pos = si_spos[i]
-                for j in range(20):
-                    if si_sect_spos[j] <= si_spos[i] < si_sect_spos[j+1]:
-                        if (j+1) not in sect:
-                            sect.append(j+1)
+            name = model_base[indices[0]].fam_name # should agree with the std girders names
+            sect = list({j + 1 for i in indices for j in range(20) if si_sect_spos[j] <= si_spos[i] < si_sect_spos[j + 1]})
         if len(sect) > 2:
-            #print(name, sect, indices)
-            raise ValueError('some elements passed are from different sectors')
-        
+            raise ValueError(f'some elements passed are from different sectors: {name, sect, indices}')
         self.sect = sect[-1]
         self.bname = name
         self.fantasy_name = name
@@ -121,7 +107,7 @@ class Button:
         if default_valids[2] == 'off':
             self.__validnames = 'off'
         elif default_valids[2] == 'std':
-            self.__validnames = _STD_GIRDER_NAMES
+            self.__validnames = _STD_ELEMS
 
         self.signature = _np.array([0.0 for _ in range(160)])
         if self.check_isvalid():
@@ -343,78 +329,68 @@ class Button:
             indices = [self.indices]  
         else:
             raise ValueError('Indices with format problem')
-        
         # the calculation:
         disp = []
-        # MODEL_ = MODEL_BASE() # new pymodels si model
-        # OC_ = _OrbitCorr(MODEL_, 'SI')
-        #_IJMAT_  = OC_.get_inverse_matrix(OC_.get_jacobian_matrix())
         delta = _DELTAS[self.dtype][self.bname[0]]
         for ind in indices:
             func(_OC_MODEL, indices=ind, values=delta) # applying (SETTING) positive delta
             rmk_correct_orbit(_OC, _JAC)
-            #print(self.indices[0], 'corr +', f, end=' ')
             disp_p = _calc_vdisp(_OC_MODEL)
-            
             # *** modded way to compute signature: approximation to dn/dp = n(p)/p
             # func(_OC_MODEL, indices=ind, values=-delta/2) # applying (SETTING) negative delta
             # f = rmk_correct_orbit(_OC, _JAC)
             # #print(self.indices[0], 'corr -', f, end='')
             # disp_n = _calc_vdisp(_OC_MODEL)
-            
             #disp_ = (disp_p - disp_n)/delta
-            
             disp.append((disp_p/delta).ravel())
-
             func(_OC_MODEL, indices=ind, values=0.0)
-            #rmk_correct_orbit(_OC, _JAC)
             _OC.set_kicks(_INIT_KICKS)
-            #print()
         #del disp_, disp_n, disp_p #, OC_, MODEL_
         return disp
     
+    # *** Not developed yet ***
     def __calc_twiss_signatures(self):
-        func = _FUNCS[self.dtype]
-        if all(isinstance(i, list) for i in self.indices): # list of list of ints
-            indices = self.indices
-        elif all(isinstance(i, (int, _np.integer)) for i in self.indices): # list of ints
-            indices = [self.indices]  
-        else:
-            raise ValueError('Indices with format problem')
-        twiss = []
-        # the calculation:
-        for ind in indices:
-            # func(_OC_MODEL, indices=ind, values=+1e-6) # applying (SETTING) positive delta
-            # rmk_correct_orbit(_OC, _IJMAT)
-            # twiss_p = _calc_twiss(_OC_MODEL)[0]
+        # func = _FUNCS[self.dtype]
+        # if all(isinstance(i, list) for i in self.indices): # list of list of ints
+        #     indices = self.indices
+        # elif all(isinstance(i, (int, _np.integer)) for i in self.indices): # list of ints
+        #     indices = [self.indices]  
+        # else:
+        #     raise ValueError('Indices with format problem')
+        # twiss = []
+        # # the calculation:
+        # for ind in indices:
+        #     func(_OC_MODEL, indices=ind, values=+1e-6) # applying (SETTING) positive delta
+        #     rmk_correct_orbit(_OC, _IJMAT)
+        #     twiss_p = _calc_twiss(_OC_MODEL)[0]
             
-            # func(_OC_MODEL, indices=ind, values=-1e-6) # applying (SETTING) negative delta
-            # rmk_correct_orbit(_OC, _IJMAT)
-            # twiss_n = _calc_twiss(_OC_MODEL)[0]
+        #     func(_OC_MODEL, indices=ind, values=-1e-6) # applying (SETTING) negative delta
+        #     rmk_correct_orbit(_OC, _IJMAT)
+        #     twiss_n = _calc_twiss(_OC_MODEL)[0]
             
-            # twiss_ = _deepcopy(twiss_p)
-            # twiss_.betax  = ((twiss_p.betax  - twiss_n.betax )/(2e-6)).ravel()
-            # twiss_.mux    = ((twiss_p.mux    - twiss_n.mux   )/(2e-6)).ravel()
-            # twiss_.alphax = ((twiss_p.alphax - twiss_n.alphax)/(2e-6)).ravel()
-            # twiss_.betay  = ((twiss_p.betay  - twiss_n.betay )/(2e-6)).ravel()
-            # twiss_.alphay = ((twiss_p.alphay - twiss_n.alphay)/(2e-6)).ravel()
-            # twiss_.muy    = ((twiss_p.muy    - twiss_n.muy   )/(2e-6)).ravel()                      
-            # twiss_.etax   = ((twiss_p.etax   - twiss_n.etax  )/(2e-6)).ravel()
-            # twiss_.etapx  = ((twiss_p.etapx  - twiss_n.etapx )/(2e-6)).ravel()
-            # twiss_.etay   = ((twiss_p.etay   - twiss_n.etay  )/(2e-6)).ravel()
-            # twiss_.etapy  = ((twiss_p.etapy  - twiss_n.etapy )/(2e-6)).ravel()
-            # twiss_.rx     = ((twiss_p.rx     - twiss_n.rx    )/(2e-6)).ravel() 
-            # twiss_.px     = ((twiss_p.px     - twiss_n.px    )/(2e-6)).ravel() 
-            # twiss_.ry     = ((twiss_p.ry     - twiss_n.ry    )/(2e-6)).ravel() 
-            # twiss_.py     = ((twiss_p.py     - twiss_n.py    )/(2e-6)).ravel() 
-            # twiss_.de     = ((twiss_p.de     - twiss_n.de    )/(2e-6)).ravel() 
-            # twiss_.dl     = ((twiss_p.dl     - twiss_n.dl    )/(2e-6)).ravel()
-            twiss_ = _ZERO_TWISS
-            twiss.append(twiss_)
-            #func(_OC_MODEL, indices=ind, values=0.0)
+        #     twiss_ = _deepcopy(twiss_p)
+        #     twiss_.betax  = ((twiss_p.betax  - twiss_n.betax )/(2e-6)).ravel()
+        #     twiss_.mux    = ((twiss_p.mux    - twiss_n.mux   )/(2e-6)).ravel()
+        #     twiss_.alphax = ((twiss_p.alphax - twiss_n.alphax)/(2e-6)).ravel()
+        #     twiss_.betay  = ((twiss_p.betay  - twiss_n.betay )/(2e-6)).ravel()
+        #     twiss_.alphay = ((twiss_p.alphay - twiss_n.alphay)/(2e-6)).ravel()
+        #     twiss_.muy    = ((twiss_p.muy    - twiss_n.muy   )/(2e-6)).ravel()                      
+        #     twiss_.etax   = ((twiss_p.etax   - twiss_n.etax  )/(2e-6)).ravel()
+        #     twiss_.etapx  = ((twiss_p.etapx  - twiss_n.etapx )/(2e-6)).ravel()
+        #     twiss_.etay   = ((twiss_p.etay   - twiss_n.etay  )/(2e-6)).ravel()
+        #     twiss_.etapy  = ((twiss_p.etapy  - twiss_n.etapy )/(2e-6)).ravel()
+        #     twiss_.rx     = ((twiss_p.rx     - twiss_n.rx    )/(2e-6)).ravel() 
+        #     twiss_.px     = ((twiss_p.px     - twiss_n.px    )/(2e-6)).ravel() 
+        #     twiss_.ry     = ((twiss_p.ry     - twiss_n.ry    )/(2e-6)).ravel() 
+        #     twiss_.py     = ((twiss_p.py     - twiss_n.py    )/(2e-6)).ravel() 
+        #     twiss_.de     = ((twiss_p.de     - twiss_n.de    )/(2e-6)).ravel() 
+        #     twiss_.dl     = ((twiss_p.dl     - twiss_n.dl    )/(2e-6)).ravel()
+        #     twiss_ = _ZERO_TWISS
+        #     twiss.append(twiss_)
+        #     #func(_OC_MODEL, indices=ind, values=0.0)
         # del twiss_p, twiss_, twiss_n
-        return twiss
-        # return self.__calc_test_func_signature()
+        # return twiss
+        return self.__calc_test_func_signature()
 
     def flatten(self):
         """Split the button if its contains two or more magnets"""
@@ -425,7 +401,7 @@ class Button:
                 # Split the button into multiple buttons
                 buttons = []
                 for i in range(len(self.indices)):
-                    sub_button = _dpcopy(self)
+                    sub_button = _deepcopy(self)
                     sub_button.indices = self.indices[i]
                     sub_button.signature = self.signature[i]
                     sub_button.fantasy_name = self.fantasy_name+'_'+str(i+1)

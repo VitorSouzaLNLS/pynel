@@ -47,22 +47,12 @@ def calc_rms(vec):
     return float((_np.mean(vec*vec))**0.5)
 
 def calc_vdisp(model, indices='bpm'):
-    if indices not in ['bpm','closed','open']:
-        raise ValueError('Invalid indices parameter: should be "bpm" or "open" or "closed"!')
-    if indices == 'bpm':
-        indices = _BPMIDX
-    orbp = _pyaccel.tracking.find_orbit4(model, indices=indices, energy_offset=+1e-6) 
-    orbn = _pyaccel.tracking.find_orbit4(model, indices=indices, energy_offset=-1e-6)
-    return (orbp[2,:] - orbn[2,:])/(2e-6)
+    disp = calc_disp(model=model, indices=indices)
+    return disp[int(len(disp))/2 :]
 
 def calc_hdisp(model, indices='bpm'):
-    if indices not in ['bpm','closed','open']:
-        raise ValueError('Invalid indices parameter: should be "bpm" or "open" or "closed"!')
-    if indices == 'bpm':
-        indices = _BPMIDX
-    orbp = _pyaccel.tracking.find_orbit4(model, indices=indices, energy_offset=+1e-6) 
-    orbn = _pyaccel.tracking.find_orbit4(model, indices=indices, energy_offset=-1e-6)
-    return (orbp[0,:] - orbn[0,:])/(2e-6)
+    disp = calc_disp(model=model, indices=indices)
+    return disp[: int(len(disp))/2]
 
 def calc_disp(model, indices='bpm'):
     if indices not in ['bpm','closed','open']:
