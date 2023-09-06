@@ -7,17 +7,14 @@ import os as _os
 from copy import deepcopy as _deepcopy
 from mathphys.functions import load_pickle as _load_pickle
 
-# file_path = _os.path.join(_os.path.dirname(__file__), 'pynel_inv_jacob_mat.txt')
-# _path_model_and_famdata = _os.path.join(_os.path.dirname(__file__), "model_and_famdata_SI_V25_04_v1.17.0.pickle")
-# if _pymodels.__version__ == '1.17.0':
-#     _data_model_and_famdata = _load_pickle(_path_model_and_famdata)
-#     _model = _data_model_and_famdata['model']
-#     _famdata = _data_model_and_famdata['fam_data']
-# else:
-_model = _pymodels.si.create_accelerator()
-_model.radiation_on = True
-_model.vchamber_on = True
-_model.cavity_on = True
+_path_model = _os.path.join(_os.path.dirname(__file__), "model_SI_V25_04_v1.17.0.pickle")
+if _pymodels.__version__ == '1.17.0':
+    _model = _load_pickle(_path_model)
+else:
+    _model = _pymodels.si.create_accelerator()
+    _model.radiation_on = True
+    _model.vchamber_on = True
+    _model.cavity_on = True
 
 def MODEL_BASE():
     """Generate a standart (BASE) SIRIUS model with radiation, cavity and vchambers ON."""

@@ -1,7 +1,4 @@
 """Fitting module to run dispersion fitting and analisys"""
-
-print('"Fitting" module is under reconstruction, functions shouldnt work as expected')
-
 import numpy as _np
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 from .misc_functions import apply_deltas as _apply_deltas, \

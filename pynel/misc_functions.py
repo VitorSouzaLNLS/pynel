@@ -48,11 +48,11 @@ def calc_rms(vec):
 
 def calc_vdisp(model, indices='bpm'):
     disp = calc_disp(model=model, indices=indices)
-    return disp[int(len(disp))/2 :]
+    return disp[int(len(disp)/2):]
 
 def calc_hdisp(model, indices='bpm'):
     disp = calc_disp(model=model, indices=indices)
-    return disp[: int(len(disp))/2]
+    return disp[:int(len(disp)/2)]
 
 def calc_disp(model, indices='bpm'):
     if indices not in ['bpm','closed','open']:
