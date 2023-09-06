@@ -2,15 +2,13 @@
 
 from .std_si_data import MODEL_BASE, SI_SPOS, SI_SECT_SPOS, \
     STD_SECTS, STD_TYPES, STD_ELEMS_HALB, STD_ELEMS_LBLP, \
-    SI_FAMDATA, SI_SECTOR_TYPES, STD_ERROR_DELTAS, STD_ELEMS, \
-    STD_ORBCORR_JACOBIAN
+    SI_SECTOR_TYPES, STD_ERROR_DELTAS, STD_ELEMS, \
+    STD_ORBCORR_JACOBIAN, SI_SECT_INDICES
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 import numpy as _np
 from copy import deepcopy as _deepcopy
 from .misc_functions import calc_vdisp as _calc_vdisp, _FUNCS, rmk_correct_orbit
-
-# *** Not being used ***
-# from pyaccel.optics import calc_twiss as _calc_twiss
+from pyaccel import lattice as _latt
 
 _SI_SPOS          = SI_SPOS()
 _SI_SECT_SPOS     = SI_SECT_SPOS()
@@ -19,46 +17,29 @@ _STD_TYPES        = STD_TYPES()
 _STD_ELEMS        = STD_ELEMS()
 _STD_ELEMS_HALB   = STD_ELEMS_HALB() 
 _STD_ELEMS_LBLP   = STD_ELEMS_LBLP() 
-_OC_MODEL = MODEL_BASE() # new pymodels si model
+_OC_MODEL = MODEL_BASE()
 _OC = _OrbitCorr(_OC_MODEL, 'SI')
 _OC.params.maxnriters = 30
 _OC.params.convergencetol = 1e-9
 _OC.params.use6dorb = True
-_INIT_KICKS = _OC.get_kicks() # zeros + rf_freq
+_INIT_KICKS = _OC.get_kicks()
 _JAC = STD_ORBCORR_JACOBIAN()
-#_JAC = _OC.get_jacobian_matrix()
 _STD_SECT_TYPES = SI_SECTOR_TYPES()
-_SI_FAMDATA = SI_FAMDATA()
-
-# *** Not being used ***
-# _TWISS = _calc_twiss(_MODEL_BASE)[0]
-# _ZERO_TWISS = _np.zeros_like(_TWISS)
-
+_SI_SECT_INDICES = SI_SECT_INDICES()
 _DELTAS = STD_ERROR_DELTAS()
 
 class Button:
     """Button object for storing a magnet (bname), it's sector (sect), it's indices 
        and it's vertical dispersion signature due to an misaligment (dtype)"""
-    def __init__(self, sect=None, dtype=None, name=None, default_valids='std', famdata='auto', func='testfunc', indices='auto'):
+    def __init__(self, sect=None, dtype=None, name=None, func='testfunc', indices='auto', default_valids='std'):
         self.func = func
-        if default_valids == 'std':
-            default_valids = ['std', 'std', 'std']
-        elif default_valids == 'off':
-            default_valids = ['off', 'off', 'off']
-        elif isinstance(default_valids, (tuple, list)):
-            if len(default_valids) == 3:
-                if any((d not in ['off', 'std']) for d in default_valids):
-                    raise ValueError('the "default_valids should contain only "std" of "off" strings"')
-            else:
-                raise ValueError('"default_valids" parameter should be a list of 3 strings: "off" and/or "std"')
-        else:
-            raise ValueError('"default_valids" parameter should be "off", "std" or a list/tuple')
+        default_valids = self.__process_valids(default_valids)
         if indices == 'auto':
-            if sect == None and name == None and dtype == None:
-                raise ValueError('None of this parameters were passed: Sect, Name, Dtype or Indices')
+            if (sect is None) and (name is None) and (dtype is None):
+                raise ValueError('Some parameters are missing "sect, name, dtype" (OR) "indices"')
             else:
-                self.__init_by_default(sect=sect, dtype=dtype, name=name, default_valids=default_valids, famdata=famdata, func=func)
-        elif isinstance(indices, list):
+                self.__init_by_default(sect=sect, dtype=dtype, name=name, func=func, default_valids=default_valids)
+        elif isinstance(indices, (list, _np.ndarray)):
             if all(isinstance(i, (int, _np.integer)) for i in indices):
                 self.__init_by_indices(indices=indices, dtype=dtype, func=func, default_valids=default_valids)
             else:
@@ -69,25 +50,11 @@ class Button:
             raise ValueError('Indices passed in wrong format')
 
     def __init_by_indices(self, indices, dtype, func, default_valids):
-        #print('init by indices')
         self.indices = indices
-        name = ''
-        sect = [-1]
-        model_base = _OC_MODEL
-        si_spos = _SI_SPOS
-        si_sect_spos = _SI_SECT_SPOS
-        if len(indices) == 1:
-            i = indices[0]
-            name = model_base[i].fam_name
-            for j in range(20):
-                if si_sect_spos[j] <= si_spos[i] < si_sect_spos[j+1]:
-                    if (j+1) not in sect:
-                        sect.append(j+1)
-        else:
-            name = model_base[indices[0]].fam_name # should agree with the std girders names
-            sect = list({j + 1 for i in indices for j in range(20) if si_sect_spos[j] <= si_spos[i] < si_sect_spos[j + 1]})
-        if len(sect) > 2:
-            raise ValueError(f'some elements passed are from different sectors: {name, sect, indices}')
+        name = _OC_MODEL[indices[0]].fam_name
+        sect = list({j + 1 for i in indices for j in range(20) if (_SI_SECT_SPOS[j] < _SI_SPOS[i]) and (_SI_SPOS[i] < _SI_SECT_SPOS[j + 1])})
+        if len(sect) > 1:
+            raise ValueError(f'some elements passed are from different sectors: {sect}')
         self.sect = sect[-1]
         self.bname = name
         self.fantasy_name = name
@@ -127,18 +94,12 @@ class Button:
             else:
                 self.signature = temp
 
-    def __init_by_default(self, sect, dtype, name, default_valids, famdata, func):
-        #print('init by default')
-        self.bname = name
+    def __init_by_default(self, sect, dtype, name, func, default_valids):
+        self.bname = name.rsplit('_')[0]
         self.fantasy_name = name
         self.dtype = dtype
         self.sect = sect
         self.sectype = self.__sector_type()
-
-        if famdata == 'auto':
-            fam = _SI_FAMDATA
-        else:
-            fam = famdata
 
         if default_valids[0] == 'std':
             self.__validsects = _STD_SECTS
@@ -165,7 +126,7 @@ class Button:
         temp = [0.0 for _ in range(160)]
 
         if self.check_isvalid():
-            self.indices = self.__find_indices(fam)
+            self.indices = self.__find_indices()
 
             if func == 'vertical_disp':
                 temp = self.__calc_vertical_dispersion_signature()
@@ -270,29 +231,20 @@ class Button:
         if len(invalid) == 3:
             print('(%d, %s, %s) ---> completely invalid' % (self.sect, self.dtype, self.bname))
 
-    def __find_indices(self, famdata):
-        famidx = famdata[self.bname]['index']
-        aux = len(famidx)/20
-        if self.sectype == 'Not_Sirius_Sector':
-            idx = []
-        else:
-            if aux == 0.5:  # 1 elemento a cada 2 setores
-                if self.sectype == _STD_SECT_TYPES[0]:      #'HighBetaA -> LowBetaB':
-                    idx = [famidx[int(0.5 * (self.sect-1))]]
-                elif self.sectype == _STD_SECT_TYPES[3]:    #'LowBetaB -> HighBetaA':
-                    idx = [famidx[int((0.5*self.sect) - 1)]]
-
-                elif self.sectype == _STD_SECT_TYPES[1]:    #'LowBetaB -> LowBetaP':
-                    idx = [famidx[int((0.5*self.sect) - 1)]]
-
-                elif self.sectype == _STD_SECT_TYPES[2]:    #'LowBetaP -> LowBetaB':
-                    idx = [famidx[int(0.5 * (self.sect-1))]]
-
-            elif aux == 1.0:  # 1 elemento por setor
-                idx = [famidx[self.sect - 1]]
-            elif aux == 2.0:  # 2 elementos por setor
-                idx = [famidx[2*self.sect - 2], famidx[2*self.sect - 1]]
-        return idx
+    def __find_indices(self):
+        famidx = _np.array(_latt.find_indices(_OC_MODEL, 'fam_name', self.bname))
+        idx = _np.where((famidx > _SI_SECT_INDICES[self.sect-1]) & (famidx < _SI_SECT_INDICES[self.sect]))
+        idx = list(famidx[idx])
+        if '_' in self.fantasy_name:
+            number = int(self.fantasy_name.rsplit('_')[-1])
+            if number == 1:
+                return idx[:int(len(idx)/2)]
+            return idx[int(len(idx)/2):]
+        elif self.bname in ['Q1', 'Q2', 'Q3', 'Q4']:
+            return [[idx[0]], [idx[1]]]
+        elif self.bname in ['B2', 'B1']:
+            return [idx[:int(len(idx)/2)], idx[int(len(idx)/2):]]
+        return [idx]
 
     def __sector_type(self):
         if self.sect in [2, 6, 10, 14, 18]:
@@ -412,3 +364,18 @@ class Button:
                 return [self]
         else:
             return [self] # flat button, but propably is invalid
+        
+    def __process_valids(self, arg):
+        if arg == 'std':
+            return ['std', 'std', 'std']
+        elif arg == 'off':
+            return ['off', 'off', 'off']
+        elif isinstance(arg, (tuple, list)):
+            if len(arg) == 3:
+                if any((d not in ['off', 'std']) for d in arg):
+                    raise ValueError('the "default_valids should contain only "std" of "off" strings"')
+            else:
+                raise ValueError('"default_valids" parameter should be a list of 3 strings: "off" and/or "std"')
+        else:
+            raise ValueError('"default_valids" parameter should be "off", "std" or a list/tuple')
+        

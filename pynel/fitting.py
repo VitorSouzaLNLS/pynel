@@ -4,15 +4,11 @@ print('"Fitting" module is under reconstruction, functions shouldnt work as expe
 
 import numpy as _np
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
-from .misc_functions import apply_deltas as _apply_deltas
-from .misc_functions import calc_vdisp as _calc_vdisp
-from .misc_functions import rmk_correct_orbit as _rmk_correct_orbit
-from .misc_functions import calc_rms as _calc_rms
-from .misc_functions import revoke_deltas as _revoke_deltas
-from .misc_functions import calc_pinv as _calc_pinv
-from .std_si_data import STD_ORBCORR_INV_JACOB_MAT as _inv_jacob
+from .misc_functions import apply_deltas as _apply_deltas, \
+    calc_vdisp as _calc_vdisp, rmk_correct_orbit as _rmk_correct_orbit,\
+    calc_rms as _calc_rms, revoke_deltas as _revoke_deltas, calc_pinv as _calc_pinv
 
-_IJMAT = _inv_jacob()
+_IJMAT = None 
 
 def s_iter(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
     imat, _, smat, _, num_svals = _calc_pinv(base.resp_mat, svals, cut)
