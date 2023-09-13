@@ -1,17 +1,19 @@
 """Module 'base' for the class object 'Base': a collection of 'Button'(s)"""
 
-from .std_si_data import SI_FAMDATA as _SI_FAMDATA, STD_ELEMS as _STD_ELEMS, STD_SECTS as _STD_SECTS, STD_TYPES as _STD_TYPES, SI_GIRDERS as _SI_GIRDERS, BPMIDX as _BPMIDX
+from .std_si_data import STD_ELEMS, STD_SECTS, \
+    STD_TYPES, BPMIDX,  SI_SECTOR_TYPES, \
+    COMPLETE_BUTTONS_VERTICAL_DISPERSION
 from .buttons import Button as _Button
-from .buttons import _STD_SECT_TYPES
 import numpy as _np
 from copy import deepcopy as _dpcopy
 from time import time as _time
-import os as _os
-from .std_si_data import COMPLETE_BUTTONS_VERTICAL_DISPERSION as _full_vertical_buttons
 
-_SI_FAMDATA, _STD_ELEMS, _STD_SECTS, _STD_TYPES, _SI_GIRDERS = _SI_FAMDATA(), _STD_ELEMS(), _STD_SECTS(), _STD_TYPES(), _SI_GIRDERS()
-_bpmidx = _BPMIDX()
-_FULL_VERTC_BUTTONS = _full_vertical_buttons()
+_STD_ELEMS          = STD_ELEMS()
+_STD_SECTS          = STD_SECTS()
+_STD_TYPES          = STD_TYPES()
+_STD_SECT_TYPES     = SI_SECTOR_TYPES()
+_bpmidx             = BPMIDX()
+_FULL_VERTC_BUTTONS = COMPLETE_BUTTONS_VERTICAL_DISPERSION()
 
 class Base:
     """
@@ -36,47 +38,27 @@ class Base:
     exclude: default=None ---> create the base without a group of unwanted elements, sects or dtypes
     valids_cond: default=False ---> reset the 'valid' condition for buttons if it is not a SIRIUS standart valid button ("Sandbox buttons")
     func: default='vertical_disp'/'testfunc' ---> set the default signature function of the buttons
-    famdata: default='auto' --->  if auto: automatically collects the standart SIRIUS famdata, else: can pass other pre-rendered famdata
-
     """
-    def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, valids_cond=['std', 'std', 'std'], func='vertical_disp', famdata='auto', buttons=None, girders=None, force_rebuild=False):
+    def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, valids_cond=['std', 'std', 'std'], func='vertical_disp', buttons=None, force_rebuild=False):
         self.rebuild = force_rebuild
         self.__func = func
         self.__init_flag = None
         self.bpmidx = _bpmidx
         if func == 'twiss':
             print('The TWISS Base is deactivated...')
-        if buttons == None and girders == None:
-            self.__init_by_default(sects=sects, elements=elements, dtypes=dtypes, exclude=exclude, valids_cond=valids_cond, func=func, famdata=famdata)
+        if buttons == None:
+            self.__init_by_default(sects=sects, elements=elements, dtypes=dtypes, exclude=exclude, valids_cond=valids_cond, func=func)
 
-        elif buttons != None and sects == 'all' and dtypes == 'all' and elements == 'all' and girders == None:
+        elif buttons != None and sects == 'all' and dtypes == 'all' and elements == 'all':
             if isinstance(buttons, list) and all(isinstance(i, _Button) for i in buttons):
                 self.__init_by_buttons(buttons=buttons)
             elif isinstance(buttons, _Button):
                 self.__init_by_buttons(buttons=[buttons])
             else:
                 raise ValueError('parameter "buttons" passed with wrong format')
-        
-        elif girders != None and sects == 'all' and elements == 'all' and buttons == None:
-            if isinstance(girders, list):
-                if all(isinstance(i, int) for i in girders):
-                    #print('list of ints')
-                    if girders in _SI_GIRDERS: # mark: problem rigidity
-                        self.__init_by_girders(girders=[girders], dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
-                    elif girders not in _SI_GIRDERS: # mark: problem developing
-                        print('Warning: the girders passed are not part of Standart SIRIUS girders')
-                        self.__init_by_girders(girders=[girders], dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
-                elif all(isinstance(i, list) for i in girders):
-                    if all(girder in _SI_GIRDERS for girder in girders): # mark: problem rigidity
-                        #print('list of list of ints')
-                        self.__init_by_girders(girders=girders, dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
-                    elif True: #all(girder in _SI_GIRDERS for girder in girders): # mark: problem rigidity
-                        print('Warning: the girders passed are not part of Standart SIRIUS girders')
-                        self.__init_by_girders(girders=girders, dtypes=dtypes, func=func, famdata=famdata, valids_cond=valids_cond)
-            else:
-                raise ValueError('parameter "girders" with problem, check if the girders are correct')
+            
         else:
-            raise ValueError('conflict when passing "buttons" or "girders"')
+            raise ValueError('conflict when passing "buttons"')
 
         self._SECT_TYPES = self.__find_sector_types()
         self.__is_flat = self.__check_isflat()
@@ -98,37 +80,6 @@ class Base:
         _t = _time()
         self.id = str(int((_t-int(_t))*1e6))
         return
-    
-    def __init_by_girders(self, girders, dtypes, func, famdata, valids_cond='std'):
-        #print('starting by girders')
-        __stdfunc = func
-        _SECTS =[]
-        _ELEMS =[]
-
-        if dtypes == 'all':
-            _TYPES = _STD_TYPES
-        else:
-            if isinstance(dtypes, list):
-                _TYPES = dtypes
-            elif isinstance(dtypes, str):
-                _TYPES = [dtypes]
-            else:
-                raise TypeError('dtypes parameter not in correct format')
-
-        buttons = []
-        for dtype in _TYPES:
-            for girder_indices in girders:
-                buttons.append(_Button(dtype=dtype, indices=girder_indices, func=__stdfunc, famdata=famdata, default_valids=valids_cond))
-        
-        for button in buttons:
-            if button.sect not in _SECTS: 
-                _SECTS.append(button.sect) 
-
-            if button.bname not in _ELEMS: 
-                _ELEMS.append(button.bname)
-
-        self._SECTS, self._ELEMS, self._TYPES, self.__buttons_list = _SECTS, _ELEMS, _TYPES, buttons
-        self.__init_flag = 'by_girders'
 
     def __init_by_buttons(self, buttons):
         #print('starting by buttons')
@@ -152,23 +103,19 @@ class Base:
 
     def __check_isflat(self):
         for b in self.__buttons_list:
-            if isinstance(b.indices, list) and b.indices == []:
+            if isinstance(b.indices, (list, tuple, _np.ndarray)) and b.indices == []:
                 return True
-            elif isinstance(b.indices, list) and b.indices != []:
-                if isinstance(b.indices[0], list):
+            elif isinstance(b.indices, (list, tuple, _np.ndarray)) and b.indices != []:
+                if isinstance(b.indices[0], (list, tuple, _np.ndarray)):
                     return False
-                elif all(isinstance(idx, int) for idx in b.indices):
+                elif all(isinstance(idx, (int, _np.integer)) for idx in b.indices):
                     return True
                 else:
                     raise ValueError('list of indices with problem')
         return False
 
-    def __init_by_default(self, sects, elements, dtypes, exclude, valids_cond, func, famdata):
+    def __init_by_default(self, sects, elements, dtypes, exclude, valids_cond, func):
         #print('starting by default')
-        if famdata == 'auto':
-            famdat = _SI_FAMDATA
-        else:
-            famdat = famdata
         if sects == 'all':
             _SECTS = _STD_SECTS
         else:
@@ -201,7 +148,7 @@ class Base:
         __default_valids = valids_cond
 
         self._SECTS, self._ELEMS, self._TYPES, = _SECTS, _ELEMS, _TYPES
-        self.__buttons_list = self.__generate_buttons(exclude, famdata=famdat, stdfunc=func, default_valids=__default_valids)
+        self.__buttons_list = self.__generate_buttons(exclude, stdfunc=func, default_valids=__default_valids)
         self.__init_flag = 'by_default'
 
     def __find_sector_types(self):
@@ -219,8 +166,7 @@ class Base:
                 sectypes.append((sect, 'Not_Sirius_Sector'))
         return dict(sectypes)
 
-    def __generate_buttons(self, exclude=None, famdata=_SI_FAMDATA, stdfunc='vertical_disp', default_valids='std'):
-        
+    def __generate_buttons(self, exclude=None, stdfunc='vertical_disp', default_valids=['std', 'std', 'std']):
         to_exclude = []
         if exclude == None:
             exclude = set()
@@ -251,7 +197,7 @@ class Base:
                 for sect in self._SECTS:
                     for elem in self._ELEMS:
                         if (sect, dtype, elem) not in exparams:
-                            temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func=stdfunc)
+                            temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, func=stdfunc)
                             all_buttons.append(temp_Button)
         elif self.rebuild == False:
             all_buttons = []
@@ -259,7 +205,7 @@ class Base:
                 for sect in self._SECTS:
                     for elem in self._ELEMS:
                         if (sect, dtype, elem) not in exparams:
-                            temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, famdata=famdata, func='testfunc')
+                            temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, func='testfunc')
                             all_buttons.append(temp_Button)
         return all_buttons
 

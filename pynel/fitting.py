@@ -1,16 +1,11 @@
 """Fitting module to run dispersion fitting and analisys"""
-
 import numpy as _np
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
-from .misc_functions import apply_deltas as _apply_deltas
-from .misc_functions import calc_vdisp as _calc_vdisp
-from .misc_functions import rmk_correct_orbit as _rmk_correct_orbit
-from .misc_functions import calc_rms as _calc_rms
-from .misc_functions import revoke_deltas as _revoke_deltas
-from .misc_functions import calc_pinv as _calc_pinv
-from .std_si_data import STD_ORBCORR_INV_JACOB_MAT as _inv_jacob
+from .misc_functions import apply_deltas as _apply_deltas, \
+    calc_vdisp as _calc_vdisp, rmk_correct_orbit as _rmk_correct_orbit,\
+    calc_rms as _calc_rms, revoke_deltas as _revoke_deltas, calc_pinv as _calc_pinv
 
-_IJMAT = _inv_jacob()
+_IJMAT = None 
 
 def s_iter(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
     imat, _, smat, _, num_svals = _calc_pinv(base.resp_mat, svals, cut)
@@ -42,7 +37,6 @@ def s_iter(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto
     _revoke_deltas(model, base)
     _rmk_correct_orbit(oc, inverse_jacobian_matrix=oc_inv_jacob_mat)
     return disp, deltas, smat, num_svals
-
 
 def f_iter_Y(
     model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"
@@ -135,7 +129,6 @@ def dev_fit(model, disp_meta, base, n_iter, inv_jacob_mat='std', True_Apply=True
         _revoke_deltas(model, base)
         _rmk_correct_orbit(OrbcorrObj, inverse_jacobian_matrix=inv_jacob_mat); 
     return disp_exit, deltas, smat, num_svals, rms_res, corr_coef, total_iter
-
 
 def fit(model, disp_meta, base, n_iter, svals="auto", cut=1e-3, Orbcorr="auto"):
     """

@@ -2,30 +2,32 @@
 
 import pymodels as _pymodels
 import numpy as _np
-from pyaccel.lattice import find_spos as _find_spos
+from pyaccel.lattice import find_spos as _find_spos, find_indices as _find_indices
 import os as _os
-from apsuite.orbcorr import OrbitCorr as _OrbitCorr
-from copy import deepcopy
+from copy import deepcopy as _deepcopy
+from mathphys.functions import load_pickle as _load_pickle
 
-# file_path = _os.path.join(_os.path.dirname(__file__), 'pynel_inv_jacob_mat.txt')
-_model = _pymodels.si.create_accelerator()
-_model.radiation_on = True
-_model.vchamber_on = True
-_model.cavity_on = True
+_path_model = _os.path.join(_os.path.dirname(__file__), "model_SI_V25_04_v1.17.0.pickle")
+if _pymodels.__version__ == '1.17.0':
+    _model = _load_pickle(_path_model)
+else:
+    _model = _pymodels.si.create_accelerator()
+    _model.radiation_on = True
+    _model.vchamber_on = True
+    _model.cavity_on = True
 
 def MODEL_BASE():
     """Generate a standart (BASE) SIRIUS model with radiation, cavity and vchambers ON."""
-    return deepcopy(_model)
+    return _deepcopy(_model)
+
+_mi_idx = sorted(_find_indices(_model, 'fam_name', 'mib') +\
+                _find_indices(_model, 'fam_name', 'mip') +\
+                _find_indices(_model, 'fam_name', 'mia') + [len(_model)])
 
 _spos = _find_spos(_model, indices='closed')
 def SI_SPOS():
     """Get the default SIRIUS longitudinal coordinates of the lattice elements"""
-    return deepcopy(_spos)
-
-_girders = _pymodels.si.families.get_girder_data(_model)
-def SI_GIRDERS():
-    """Get the default SIRIUS girders indices data"""
-    return deepcopy(_girders)
+    return _deepcopy(_spos)
 
 def SI_SEXTUPOLES():
     """Get the default SIRIUS sextupoles names"""
@@ -44,11 +46,18 @@ def SI_QUADRUPOLES():
             'QFP','QDP1','QDP2',
             'Q1','Q2','Q3','Q4']
 
-_famdata = _pymodels.si.families.get_family_data(_model)
-_bpmidx = list(_np.array(_famdata['BPM']['index']).ravel())
+# if _famdata is None:
+#     print('getting_famdata')
+#     _famdata = _pymodels.si.families.get_family_data(_model)
+
+def SI_FAMDATA():
+    """Get the default SIRIUS families data"""
+    return _deepcopy(_pymodels.si.families.get_family_data(_model))
+
+_bpmidx = _find_indices(_model, 'fam_name', 'BPM')
 def BPMIDX():
     """Get the default SIRIUS BPM's indices"""
-    return deepcopy(_bpmidx)
+    return _deepcopy(_bpmidx)
 
 def STD_ELEMS_HALB():
     """Get the default SIRIUS names of the elements in the 'HA-LB' or 'LB-HA' sectors"""
@@ -78,14 +87,12 @@ def STD_TYPES():
     'drp' : Rotation pitch misalignment 
     'dry' : Rotation yaw misalignment
     """
-    #'dksl': Skew Gradient Strength
     return [ 'dx', 'dy', 'dr', 'drp', 'dry'] #, 'dksl'])
 
-_all_sects = [i for i in range(1, 21)]
+_all_sects = list(range(1, 21))
 def STD_SECTS():
     """Returns the default sectors of SIRIUS ring (sectors from 1 to 20)"""
-    return deepcopy(_all_sects)
-
+    return _deepcopy(_all_sects)
 
 def STD_ELEMS():
     """Get the default SIRIUS names of dipoles, quadrupoles and sextupoles in the ring"""
@@ -98,37 +105,39 @@ def STD_ELEMS():
             'SDB0','SDB1','SDB2','SDB3','SFB0','SFB1','SFB2',
             'SDP0','SDP1','SDP2','SDP3','SFP0','SFP1','SFP2']
 
-_sect_spos = [(_spos[-1]/20)*i for i in range(21)]
+_sect_spos = _spos[_mi_idx]
 def SI_SECT_SPOS():
     """Get the longitudinal coordinates at the start of each sector"""
-    return deepcopy(_sect_spos)
+    return _deepcopy(_sect_spos)
 
-def SI_FAMDATA():
-    """Get the default SIRIUS families data"""
-    return deepcopy(_famdata)
+def SI_SECT_INDICES():
+    """Get the indices at the start of each sector"""
+    return _deepcopy(_mi_idx)
+
+def SI_SECTOR_TYPES():
+    """Get the default SIRIUS sector types"""
+    return ['HighBetaA -> LowBetaB', 
+            'LowBetaB -> LowBetaP', 
+            'LowBetaP -> LowBetaB', 
+            'LowBetaB -> HighBetaA']
 
 def NothingHere():
     """You will find nothing here..."""
     print('Nothing Here!')
 
-_jacob_mat = _np.loadtxt(_os.path.join(_os.path.dirname(__file__), 'pynel_inv_jacob_mat.txt')) # pre-saved jacobian for MODEL_BASE
-#_jacob_mat = _OrbitCorr(_model, 'SI').get_jacobian_matrix()
-def STD_ORBCORR_INV_JACOB_MAT():
+# #_orbcorr_jacob_mat = _OrbitCorr(_model, 'SI').get_jacobian_matrix()
+_orbcorr_jacob_mat = _load_pickle(_os.path.join(_os.path.dirname(__file__), 'orbcorr_jacobian_SI_V25_04_v1.17.0.pickle')) # pre-saved jacobian for MODEL_BASE
+def STD_ORBCORR_JACOBIAN():
     """Return the inverse matrix of the Orbit Correction Jacobian of the standart pymodels SIRIUS model"""
-    return deepcopy(_jacob_mat)
+    return _deepcopy(_orbcorr_jacob_mat)
 
+_deltas = {'dx':  {'B':40e-6, 'Q':40e-6, 'S':40e-6}, 'dy':  {'B':40e-6, 'Q':40e-6, 'S':40e-6}, 
+ 'dr':  {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3}, 'drp': {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3}, 
+ 'dry': {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3}}
+def STD_ERROR_DELTAS():
+    """Default misalignment and rotation expected error"""
+    return _deepcopy(_deltas)
 
-def STD_GIRDER_NAMES():
-    """ *** DISCONTINUED ***
-    Return the standart Girders linked-elements names
-    -> A girder name could be returned in the form: '_girder_BC_girder' 
-    in the imaginary example of a single 'BC' in an hipothetical girder
-    """
-    return []
-
-from mathphys.functions import load_pickle as _load_pickle
-_path_full_buttons = _os.path.join(_os.path.dirname(__file__), "full_buttons_03-08-23.pickle")
-_FULL_VERTC_BUTTONS = _load_pickle(_path_full_buttons)
+_full_buttons = _load_pickle(_os.path.join(_os.path.dirname(__file__), "full_buttons_04_09_23.pickle"))
 def COMPLETE_BUTTONS_VERTICAL_DISPERSION():
-    return deepcopy(_FULL_VERTC_BUTTONS)
-
+    return _deepcopy(_full_buttons)
