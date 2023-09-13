@@ -103,12 +103,12 @@ class Base:
 
     def __check_isflat(self):
         for b in self.__buttons_list:
-            if isinstance(b.indices, list) and b.indices == []:
+            if isinstance(b.indices, (list, tuple, _np.ndarray)) and b.indices == []:
                 return True
-            elif isinstance(b.indices, list) and b.indices != []:
-                if isinstance(b.indices[0], list):
+            elif isinstance(b.indices, (list, tuple, _np.ndarray)) and b.indices != []:
+                if isinstance(b.indices[0], (list, tuple, _np.ndarray)):
                     return False
-                elif all(isinstance(idx, int) for idx in b.indices):
+                elif all(isinstance(idx, (int, _np.integer)) for idx in b.indices):
                     return True
                 else:
                     raise ValueError('list of indices with problem')
@@ -166,8 +166,7 @@ class Base:
                 sectypes.append((sect, 'Not_Sirius_Sector'))
         return dict(sectypes)
 
-    def __generate_buttons(self, exclude=None, stdfunc='vertical_disp', default_valids='std'):
-        
+    def __generate_buttons(self, exclude=None, stdfunc='vertical_disp', default_valids=['std', 'std', 'std']):
         to_exclude = []
         if exclude == None:
             exclude = set()

@@ -95,6 +95,7 @@ class Button:
                 self.signature = temp
 
     def __init_by_default(self, sect, dtype, name, func, default_valids):
+        #print('init by default', default_valids)
         self.bname = name.rsplit('_')[0]
         self.fantasy_name = name
         self.dtype = dtype
@@ -366,6 +367,7 @@ class Button:
             return [self] # flat button, but propably is invalid
         
     def __process_valids(self, arg):
+        #print('arg = ', arg)
         if arg == 'std':
             return ['std', 'std', 'std']
         elif arg == 'off':
@@ -374,6 +376,8 @@ class Button:
             if len(arg) == 3:
                 if any((d not in ['off', 'std']) for d in arg):
                     raise ValueError('the "default_valids should contain only "std" of "off" strings"')
+                else:
+                    return arg
             else:
                 raise ValueError('"default_valids" parameter should be a list of 3 strings: "off" and/or "std"')
         else:
