@@ -14,3 +14,5 @@ Contact: vitor.souza@lnls.br, vitinhodavi@usp.br.
 -> Last mod: 13/09/23
 
 OBS.: Fitting sub-module should be revised (re-written) considering last updates!
+
+Mods made at "FAC-Vitor's" pc 
