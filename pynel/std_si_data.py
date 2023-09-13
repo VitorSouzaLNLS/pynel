@@ -9,25 +9,25 @@ from mathphys.functions import load_pickle as _load_pickle
 
 _path_model = _os.path.join(_os.path.dirname(__file__), "model_SI_V25_04_v1.17.0.pickle")
 if _pymodels.__version__ == '1.17.0':
-    _model = _load_pickle(_path_model)
+    __model = _load_pickle(_path_model)
 else:
-    _model = _pymodels.si.create_accelerator()
-    _model.radiation_on = True
-    _model.vchamber_on = True
-    _model.cavity_on = True
+    __model = _pymodels.si.create_accelerator()
+    __model.radiation_on = True
+    __model.vchamber_on = True
+    __model.cavity_on = True
 
 def MODEL_BASE():
     """Generate a standart (BASE) SIRIUS model with radiation, cavity and vchambers ON."""
-    return _deepcopy(_model)
+    return _deepcopy(__model)
 
-_mi_idx = sorted(_find_indices(_model, 'fam_name', 'mib') +\
-                _find_indices(_model, 'fam_name', 'mip') +\
-                _find_indices(_model, 'fam_name', 'mia') + [len(_model)])
+__mi_idx = sorted(_find_indices(__model, 'fam_name', 'mib') +\
+                _find_indices(__model, 'fam_name', 'mip') +\
+                _find_indices(__model, 'fam_name', 'mia') + [len(__model)])
 
-_spos = _find_spos(_model, indices='closed')
+__spos = _find_spos(__model, indices='closed')
 def SI_SPOS():
     """Get the default SIRIUS longitudinal coordinates of the lattice elements"""
-    return _deepcopy(_spos)
+    return _deepcopy(__spos)
 
 def SI_SEXTUPOLES():
     """Get the default SIRIUS sextupoles names"""
@@ -52,12 +52,12 @@ def SI_QUADRUPOLES():
 
 def SI_FAMDATA():
     """Get the default SIRIUS families data"""
-    return _deepcopy(_pymodels.si.families.get_family_data(_model))
+    return _deepcopy(_pymodels.si.families.get_family_data(__model))
 
-_bpmidx = _find_indices(_model, 'fam_name', 'BPM')
+__bpmidx = _find_indices(__model, 'fam_name', 'BPM')
 def BPMIDX():
     """Get the default SIRIUS BPM's indices"""
-    return _deepcopy(_bpmidx)
+    return _deepcopy(__bpmidx)
 
 def STD_ELEMS_HALB():
     """Get the default SIRIUS names of the elements in the 'HA-LB' or 'LB-HA' sectors"""
@@ -89,10 +89,10 @@ def STD_TYPES():
     """
     return [ 'dx', 'dy', 'dr', 'drp', 'dry'] #, 'dksl'])
 
-_all_sects = list(range(1, 21))
+__all_sects = list(range(1, 21))
 def STD_SECTS():
     """Returns the default sectors of SIRIUS ring (sectors from 1 to 20)"""
-    return _deepcopy(_all_sects)
+    return _deepcopy(__all_sects)
 
 def STD_ELEMS():
     """Get the default SIRIUS names of dipoles, quadrupoles and sextupoles in the ring"""
@@ -105,14 +105,14 @@ def STD_ELEMS():
             'SDB0','SDB1','SDB2','SDB3','SFB0','SFB1','SFB2',
             'SDP0','SDP1','SDP2','SDP3','SFP0','SFP1','SFP2']
 
-_sect_spos = _spos[_mi_idx]
+__sect_spos = __spos[__mi_idx]
 def SI_SECT_SPOS():
     """Get the longitudinal coordinates at the start of each sector"""
-    return _deepcopy(_sect_spos)
+    return _deepcopy(__sect_spos)
 
 def SI_SECT_INDICES():
     """Get the indices at the start of each sector"""
-    return _deepcopy(_mi_idx)
+    return _deepcopy(__mi_idx)
 
 def SI_SECTOR_TYPES():
     """Get the default SIRIUS sector types"""
@@ -126,18 +126,18 @@ def NothingHere():
     print('Nothing Here!')
 
 # #_orbcorr_jacob_mat = _OrbitCorr(_model, 'SI').get_jacobian_matrix()
-_orbcorr_jacob_mat = _load_pickle(_os.path.join(_os.path.dirname(__file__), 'orbcorr_jacobian_SI_V25_04_v1.17.0.pickle')) # pre-saved jacobian for MODEL_BASE
+__orbcorr_jacob_mat = _load_pickle(_os.path.join(_os.path.dirname(__file__), 'orbcorr_jacobian_SI_V25_04_v1.17.0.pickle')) # pre-saved jacobian for MODEL_BASE
 def STD_ORBCORR_JACOBIAN():
     """Return the inverse matrix of the Orbit Correction Jacobian of the standart pymodels SIRIUS model"""
-    return _deepcopy(_orbcorr_jacob_mat)
+    return _deepcopy(__orbcorr_jacob_mat)
 
-_deltas = {'dx':  {'B':40e-6, 'Q':40e-6, 'S':40e-6}, 'dy':  {'B':40e-6, 'Q':40e-6, 'S':40e-6}, 
+__deltas = {'dx':  {'B':40e-6, 'Q':40e-6, 'S':40e-6}, 'dy':  {'B':40e-6, 'Q':40e-6, 'S':40e-6}, 
  'dr':  {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3}, 'drp': {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3}, 
  'dry': {'B':0.3e-3, 'Q':0.3e-3, 'S':0.17e-3}}
 def STD_ERROR_DELTAS():
     """Default misalignment and rotation expected error"""
-    return _deepcopy(_deltas)
+    return _deepcopy(__deltas)
 
-_full_buttons = _load_pickle(_os.path.join(_os.path.dirname(__file__), "full_buttons_04_09_23.pickle"))
+__full_buttons = _load_pickle(_os.path.join(_os.path.dirname(__file__), "full_buttons_04_09_23.pickle"))
 def COMPLETE_BUTTONS_VERTICAL_DISPERSION():
-    return _deepcopy(_full_buttons)
+    return _deepcopy(__full_buttons)
