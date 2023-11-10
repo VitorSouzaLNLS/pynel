@@ -7,7 +7,7 @@ from .std_si_data import MODEL_BASE, SI_SPOS, SI_SECT_SPOS, \
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
 import numpy as _np
 from copy import deepcopy as _deepcopy
-from .misc_functions import calc_vdisp as _calc_vdisp, _FUNCS, rmk_correct_orbit
+from .misc_functions import calc_vdisp as _calc_vdisp, _SET_FUNCS, rmk_correct_orbit
 from pyaccel import lattice as _latt
 
 _SI_SPOS          = SI_SPOS()
@@ -275,7 +275,7 @@ class Button:
         return disp
     
     def __calc_vertical_dispersion_signature(self):
-        func = _FUNCS[self.dtype]
+        func = _SET_FUNCS[self.dtype]
         if all(isinstance(i, list) for i in self.indices): # list of list of ints
             indices = self.indices
         elif all(isinstance(i, (int, _np.integer)) for i in self.indices): # list of ints

@@ -1,9 +1,9 @@
 """Fitting module to run dispersion fitting and analisys"""
 import numpy as _np
 from apsuite.orbcorr import OrbitCorr as _OrbitCorr
-from .misc_functions import apply_deltas as _apply_deltas, \
+from .misc_functions import add_delta_errors as _apply_deltas, \
     calc_vdisp as _calc_vdisp, rmk_correct_orbit as _rmk_correct_orbit,\
-    calc_rms as _calc_rms, revoke_deltas as _revoke_deltas, calc_pinv as _calc_pinv
+    calc_rms as _calc_rms, remove_delta_errors as _revoke_deltas, calc_pinv as _calc_pinv
 
 _IJMAT = None 
 
