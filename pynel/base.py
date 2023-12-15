@@ -1,408 +1,197 @@
-"""Module 'base' for the class object 'Base': a collection of 'Button'(s)"""
-
-from .std_si_data import STD_ELEMS, STD_SECTS, \
-    STD_TYPES, BPMIDX,  SI_SECTOR_TYPES, \
-    COMPLETE_BUTTONS_VERTICAL_DISPERSION
-from .buttons import Button as _Button
-import numpy as _np
+"""Module 'base' for the class object 'Base': a collection of 'Button'(s)."""
 from copy import deepcopy as _dpcopy
-from time import time as _time
 
-_STD_ELEMS          = STD_ELEMS()
-_STD_SECTS          = STD_SECTS()
-_STD_TYPES          = STD_TYPES()
-_STD_SECT_TYPES     = SI_SECTOR_TYPES()
-_bpmidx             = BPMIDX()
-_FULL_VERTC_BUTTONS = COMPLETE_BUTTONS_VERTICAL_DISPERSION()
+import numpy as _np
+from mathphys.functions import load_pickle, save_pickle
+
+from .buttons import Button as _Button
+from .si_data import si_dipoles, si_elems, si_quadrupoles, si_sectors, \
+    si_sextupoles, std_misaligment_types
+
+_STD_ELEMS = si_elems()
+_STD_TYPES = std_misaligment_types()
+_STD_SECTS = si_sectors()
+_STD_SEXTUPOLES = si_sextupoles()
+_STD_QUADRUPOLES = si_quadrupoles()
+_STD_DIPOLES = si_dipoles()
+
+default_buttons_path = "/".join(__file__.split("/")[:-1])
+default_buttons_path += "/Default_Pynel_Base_Buttons.pickle"
+
+DEFAULT_BUTTONS = None
+
+
+def load_default_base_button():
+    globals()["DEFAULT_BUTTONS"] = load_pickle(default_buttons_path)
+
+
+try:
+    load_default_base_button()
+except FileNotFoundError:
+    DEFAULT_BUTTONS = []
+
 
 class Base:
-    """
-    Object Base: a collection of buttons (Button Object)
-    About:
-    ---> The Base object was implemented to group Button objects and perform analisys on how these buttons can modify the optics in SIRIUS ring.
+    """I'll rewrite this docstring. Be patience."""
 
-    Creation:
-    ---> Creating a Base can be performed in two basic ways: passing specified elements and sectors or passing girder indices:
+    def __init__(self, **kwargs):
+        # reading the func arg >>> default = "vertical_disp"
+        self._func = kwargs.get("func", "vertical_disp")
+        if self._func not in ("testfunc", "vertical_disp"):
+            raise ValueError("invalid arg: func")
 
-    > Creating by default requires passing three args: 
-    >'sects' (integers), 'elements' (name strings of the magnets) and 'dtypes' (variations between 'dx', 'dy', 'dr')
+        self._use_root = kwargs.get("use_root_Buttons", True)
+        if self._use_root not in (True, False):
+            raise ValueError("invalid arg: use_root_Buttons")
 
-    > Creating by buttons requires passing only one arg: 
-    >'buttons' (a list of buttons or a single one)
+        if ("buttons" in kwargs) and any(
+            i in kwargs for i in ("sects", "elems")
+        ):
+            raise ValueError("too much args: (buttons) and (elems or sects)")
 
-    > Creating by girders indices requires passing only two args: 
-    > 'girders' (the indices of a single girder or more girders) and 'dtypes' (variations between 'dx', 'dy', 'dr')
-
-    *kwargs:
-    auto_refine: default=True ---> automatically refines the Base by removing invalid buttons and flatten the valids
-    exclude: default=None ---> create the base without a group of unwanted elements, sects or dtypes
-    valids_cond: default=False ---> reset the 'valid' condition for buttons if it is not a SIRIUS standart valid button ("Sandbox buttons")
-    func: default='vertical_disp'/'testfunc' ---> set the default signature function of the buttons
-    """
-    def __init__(self, sects='all', elements='all', dtypes='all', auto_refine=True, exclude=None, valids_cond=['std', 'std', 'std'], func='vertical_disp', buttons=None, force_rebuild=False):
-        self.rebuild = force_rebuild
-        self.__func = func
-        self.__init_flag = None
-        self.bpmidx = _bpmidx
-        if func == 'twiss':
-            print('The TWISS Base is deactivated...')
-        if buttons == None:
-            self.__init_by_default(sects=sects, elements=elements, dtypes=dtypes, exclude=exclude, valids_cond=valids_cond, func=func)
-
-        elif buttons != None and sects == 'all' and dtypes == 'all' and elements == 'all':
-            if isinstance(buttons, list) and all(isinstance(i, _Button) for i in buttons):
-                self.__init_by_buttons(buttons=buttons)
-            elif isinstance(buttons, _Button):
-                self.__init_by_buttons(buttons=[buttons])
+        if "buttons" not in kwargs:
+            # reading dtypes arg
+            self._dtypes = kwargs.get("dtypes", _STD_TYPES)
+            if self._dtypes is not None:
+                if isinstance(self._dtypes, (list, tuple)) and all(
+                    i in _STD_TYPES for i in self._dtypes
+                ):
+                    self._dtypes = sorted(
+                        list(set(self._dtypes)),
+                        key=lambda x: _STD_TYPES.index(x),
+                    )
+                elif self._dtypes in _STD_TYPES:
+                    self._dtypes = [self._dtypes]
             else:
-                raise ValueError('parameter "buttons" passed with wrong format')
-            
+                raise ValueError("invalid arg: dtypes")
+
+            # reading sects
+            self._sects = kwargs.get("sects", _STD_SECTS)
+            if (
+                isinstance(self._sects, (list, tuple, _np.ndarray))
+                and all(isinstance(i, (int, _np.integer)) for i in self._sects)
+                and all(0 < i <= 20 for i in self._sects)
+            ) or (
+                isinstance(self._sects, (int, _np.integer))
+                and 0 < self._sects <= 20
+            ):
+                self._sects = sorted(list(set(self._sects)))
+            else:
+                raise ValueError("invalid arg: sects")
+
+            # reading elems
+            self._elems = kwargs.get("elements", _STD_ELEMS)
+            if isinstance(self._elems, (list, tuple)) and all(
+                i in _STD_ELEMS for i in self._elems
+            ):
+                self._elems = sorted(
+                    list(set(self._elems)), key=lambda x: _STD_ELEMS.index(x)
+                )
+            elif self._elems in _STD_ELEMS:
+                self._elems = [self._elems]
+            elif self._elems == "sextupoles":
+                self._elems = _STD_SEXTUPOLES
+            elif self._elems == "quadrupoles":
+                self._elems = _STD_QUADRUPOLES
+            elif self._elems == "dipoles":
+                self._elems = _STD_DIPOLES
+            else:
+                raise ValueError("invalid arg: elems")
+
+            # gen buttons
+            self._buttons = self.__generate_buttons()
+
         else:
-            raise ValueError('conflict when passing "buttons"')
-
-        self._SECT_TYPES = self.__find_sector_types()
-        self.__is_flat = self.__check_isflat()
-        self.__is_updated = False
-
-        if auto_refine:
-            self.refine_base(update_buttons=True, flatten=True, return_removed=False, show_invalids=False)
-
-        if self.rebuild == False and self.__init_flag == 'by_default':
-            temp_buttons = []
-            for button in self.__buttons_list:
-                for buttonV in _FULL_VERTC_BUTTONS:
-                    if button == buttonV:
-                        temp_buttons.append(buttonV)
-
-            self.__buttons_list = temp_buttons
-
-        self.__matrix = self.__make_matrix()
-        _t = _time()
-        self.id = str(int((_t-int(_t))*1e6))
-        return
-
-    def __init_by_buttons(self, buttons):
-        #print('starting by buttons')
-        __stdfunc = 'None'
-        _SECTS =[]
-        _ELEMS =[]
-        _TYPES =[]
-
-        for button in buttons:
-            if button.sect not in _SECTS: 
-                _SECTS.append(button.sect) 
-
-            if button.bname not in _ELEMS: 
-                _ELEMS.append(button.bname) 
-
-            if button.dtype not in _TYPES: 
-                _TYPES.append(button.dtype)
-
-        self._SECTS, self._ELEMS, self._TYPES, self.__buttons_list = _SECTS, _ELEMS, _TYPES, buttons
-        self.__init_flag = 'by_buttons'
-
-    def __check_isflat(self):
-        for b in self.__buttons_list:
-            if isinstance(b.indices, (list, tuple, _np.ndarray)) and b.indices == []:
-                return True
-            elif isinstance(b.indices, (list, tuple, _np.ndarray)) and b.indices != []:
-                if isinstance(b.indices[0], (list, tuple, _np.ndarray)):
-                    return False
-                elif all(isinstance(idx, (int, _np.integer)) for idx in b.indices):
-                    return True
+            # reading buttons
+            self._buttons = kwargs.get("buttons")
+            if self._buttons is not None:
+                if isinstance(self._buttons, (list, tuple)) and all(
+                    isinstance(i, _Button) for i in self._buttons
+                ):
+                    self._buttons = self._buttons
+                elif isinstance(self._buttons, _Button):
+                    self._buttons = [self._buttons]
                 else:
-                    raise ValueError('list of indices with problem')
-        return False
+                    raise ValueError("invalid arg: buttons")
 
-    def __init_by_default(self, sects, elements, dtypes, exclude, valids_cond, func):
-        #print('starting by default')
-        if sects == 'all':
-            _SECTS = _STD_SECTS
-        else:
-            if isinstance(sects, list):
-                _SECTS = sects
-            elif isinstance(sects, int):
-                _SECTS = [sects]
-            else:
-                raise TypeError('sects parameter not in correct format')
-        if elements == 'all':
-            _ELEMS = _STD_ELEMS
-        else:
-            if isinstance(elements, list):
-                _ELEMS = elements
-            elif isinstance(elements, str):
-                _ELEMS = [elements]
-            else:
-                raise TypeError('elements parameter not in correct format')
+            self._sects = []
+            self._elems = []
+            self._dtypes = []
+            for button in self._buttons:
+                self._sects.append(button.sect)
+                self._elems.append(button.elem)
+                self._dtypes.append(button.dtype)
+            self._sects = sorted(list(set(self._sects)))
+            self._elems = sorted(
+                list(set(self._elems)), key=lambda x: _STD_ELEMS.index(x)
+            )
+            self._dtypes = sorted(
+                list(set(self._dtypes)), key=lambda x: _STD_TYPES.index(x)
+            )
 
-        if dtypes == 'all':
-            _TYPES = _STD_TYPES
-        else:
-            if isinstance(dtypes, list):
-                _TYPES = dtypes
-            elif isinstance(dtypes, str):
-                _TYPES = [dtypes]
-            else:
-                raise TypeError('dtypes parameter not in correct format')
+        self._matrix = self.__make_matrix()
 
-        __default_valids = valids_cond
-
-        self._SECTS, self._ELEMS, self._TYPES, = _SECTS, _ELEMS, _TYPES
-        self.__buttons_list = self.__generate_buttons(exclude, stdfunc=func, default_valids=__default_valids)
-        self.__init_flag = 'by_default'
-
-    def __find_sector_types(self):
-        sectypes = []
-        for sect in self._SECTS:
-            if sect in [2, 6, 10, 14, 18]:
-                sectypes.append((sect, _STD_SECT_TYPES[1]))
-            elif sect in [3, 7, 11, 15, 19]:
-                sectypes.append((sect, _STD_SECT_TYPES[2]))
-            elif sect in [4, 8, 12, 16, 20]:
-                sectypes.append((sect, _STD_SECT_TYPES[3]))
-            elif sect in [1, 5, 9, 13, 17]:
-                sectypes.append((sect, _STD_SECT_TYPES[0]))
-            else:
-                sectypes.append((sect, 'Not_Sirius_Sector'))
-        return dict(sectypes)
-
-    def __generate_buttons(self, exclude=None, stdfunc='vertical_disp', default_valids=['std', 'std', 'std']):
-        to_exclude = []
-        if exclude == None:
-            exclude = set()
-        elif isinstance(exclude, (str, int)):
-            exclude = set([exclude])
-        elif isinstance(exclude, (list, tuple)):
-            exclude = set(exclude)
-        else:
-            raise TypeError("Exclude parameters not in format!")
-
-        for e in exclude:
-            if isinstance(e, (str, int)):
-                to_exclude.extend(self.__exclude_buttons(e))
-            elif isinstance(e, (tuple, list)):
-                to_exclude.extend(self.__exclude_buttons(*e))
-            else:
-                raise TypeError("Exclude parameters not in format!")
-        
-        if to_exclude == []:
-            to_exclude = [_Button(sect=-1, name='FalseButton', dtype='dF')]
-        exparams=[]
-        for exbutton in to_exclude:
-            exparams.append((exbutton.sect, exbutton.dtype, exbutton.bname))
-
-        if self.rebuild == True:
-            all_buttons = []
-            for dtype in self._TYPES:
-                for sect in self._SECTS:
-                    for elem in self._ELEMS:
-                        if (sect, dtype, elem) not in exparams:
-                            temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, func=stdfunc)
-                            all_buttons.append(temp_Button)
-        elif self.rebuild == False:
-            all_buttons = []
-            for dtype in self._TYPES:
-                for sect in self._SECTS:
-                    for elem in self._ELEMS:
-                        if (sect, dtype, elem) not in exparams:
-                            temp_Button = _Button(name=elem, dtype=dtype, sect=sect, default_valids=default_valids, func='testfunc')
-                            all_buttons.append(temp_Button)
-        return all_buttons
-
-    def __exclude_buttons(self, par1, par2=None, par3=None):
-        if par2 == None and par3 == None:
-            if isinstance(par1, int):
-                exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                             for sect in self._SECTS
-                             for dtype in self._TYPES
-                             for elem in self._ELEMS
-                             if sect == par1]
-            elif isinstance(par1, str):
-                if par1[0] == 'd':
-                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                                 for sect in self._SECTS
-                                 for dtype in self._TYPES
-                                 for elem in self._ELEMS
-                                 if dtype == par1]
-                else:
-                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                                 for sect in self._SECTS
-                                 for dtype in self._TYPES
-                                 for elem in self._ELEMS
-                                 if elem == par1]
-        elif par3 == None:
-            if isinstance(par1, int):  # par1 = sect
-                if par2.startswith('d'):  # par1 = sect, par2 = dtype #### (sect, dtype)
-                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                                 for sect in self._SECTS
-                                 for dtype in self._TYPES
-                                 for elem in self._ELEMS
-                                 if (dtype == par2 and sect == par1)]
-                # par1 = sect, par2 = elem                     #### (sect, elem)
-                else:
-                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                                 for sect in self._SECTS
-                                 for dtype in self._TYPES
-                                 for elem in self._ELEMS
-                                 if (elem == par2 and sect == par1)]
-            elif isinstance(par2, int):  # par2 = sect
-                if par1.startswith('d'):  # par1 = dtype, par2 = sect #### (dtype, sect)
-                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                                 for sect in self._SECTS
-                                 for dtype in self._TYPES
-                                 for elem in self._ELEMS
-                                 if (dtype == par1 and sect == par2)]
-                # par1 = elem, par2 = sect                     #### (elem, sect)
-                else:
-                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                                 for sect in self._SECTS
-                                 for dtype in self._TYPES
-                                 for elem in self._ELEMS
-                                 if (elem == par1 and sect == par2)]
-            else:  # par1, par2 = elem or dtype:
-                if par1.startswith('d'):  # par1 = dtype, par2 = elem #### (dtype, elem)
-                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                                 for sect in self._SECTS
-                                 for dtype in self._TYPES
-                                 for elem in self._ELEMS
-                                 if (dtype == par1 and elem == par2)]
-                # par1 = elem, par2 = dtype                   #### (elem, dtype)
-                else:
-                    exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )
-                                 for sect in self._SECTS
-                                 for dtype in self._TYPES
-                                 for elem in self._ELEMS
-                                 if (elem == par1 and dtype == par2)]
-        else:
-            for el in (par1, par2, par3):
-                if isinstance(el, int):
-                    sect = el
-                if isinstance(el, str) and el[0] == 'd':
-                    dtype = el
-                if isinstance(el, str) and el[0] != 'd':
-                    elem = el
-            exbuttons = [_Button(name=elem, dtype=dtype, sect=sect, func='testfunc' )]
-        return exbuttons
-
-    def refine_base(self, update_buttons=True, flatten=True, return_removed=False, show_invalids=False):  
-        """Function that refines the Base:
-        update_buttons: default=True --> the refining will find and remove invalid buttons
-        return_removed: default=False --> return a list of the invalid buttons (removed or set to remove)
-        show_invalids: default=False --> print the invalid-buttons invalid parameters
-        flatten: default=True --> split not-flat buttons
-        """
-        if flatten:
-            flat = []
-            for b in self.__buttons_list:
-                for new_b in b.flatten():
-                    flat.append(new_b)
-            self.__buttons_list = flat
-            self.__is_flat = self.__check_isflat()
-
-        to_remove = []
-        for b in self.__buttons_list:
-            if not b.check_isvalid():
-                to_remove.append(b)
-
-        if update_buttons:
-            
-            self._SECTS = []
-            self._ELEMS = []
-            self._TYPES = []
-            old_buttons = _dpcopy(self.__buttons_list)
-
-            self.__buttons_list = []
-            for button in old_buttons:
-                if button not in to_remove: 
-                    self.__buttons_list.append(button)
-                    if button.sect not in self._SECTS: 
-                        self._SECTS.append(button.sect) 
-                    if button.bname not in self._ELEMS: 
-                        self._ELEMS.append(button.bname) 
-                    if button.dtype not in self._TYPES: 
-                        self._TYPES.append(button.dtype) 
-
-            self.__is_updated = True
-
-        if show_invalids:
-            for b in to_remove:
-                b.show_invalid_parameters()
-
-        if return_removed:
-            return to_remove
-        
-        self.__matrix = self.__make_matrix()
+    def __generate_buttons(self):
+        all_buttons = []
+        for dtype in self._dtypes:
+            for sect in self._sects:
+                for elem in self._elems:
+                    sig_flag = 0
+                    for bt in DEFAULT_BUTTONS:
+                        if (sect, dtype, elem) == (bt.sect, bt.dtype, bt.elem):
+                            sig = bt.signature
+                            sig_flag = 1
+                    if sig_flag == 0:
+                        temp_button = _Button(
+                            elem=elem, dtype=dtype, sect=sect, func=self._func
+                        )
+                    else:
+                        temp_button = _Button(
+                            elem=elem, dtype=dtype, sect=sect, func="testfunc"
+                        )
+                        temp_button.signature = _dpcopy(sig)
+                    all_buttons.append(temp_button)
+        flat_buttons = []
+        for button in all_buttons:
+            if button.is_valid:
+                b = button.flatten()
+                flat_buttons += (
+                    b if isinstance(b, (list, tuple, _np.ndarray)) else [b]
+                )
+        return flat_buttons
 
     def __make_matrix(self):
-        if self.__func == 'twiss':
-            return 0
-        if len(self.__buttons_list) <= 0:
-            print('Zero buttons, matrix not generated')
-        elif self.__is_flat and self.__is_updated:
-            M = _np.zeros((160, len(self.__buttons_list)))
-            for i, b in enumerate(self.__buttons_list):
-                M[:, i] = _np.array(b.signature).ravel()
-            return M
-        elif self.__is_flat == True and self.__is_updated == False:
-            print('Base flat, but not updated please refine (update)')
-            return 0
-        elif self.__is_flat == False and self.__is_updated == True:
-            print('Base not flat, please refine (flatten)')
-            return 0
-        else:
-            print('Please refine Base (update & flatten)')
-            return 0
+        matrix = _np.zeros(shape=(160, self.__len__()))
+        return matrix
 
     @property
     def buttons(self):
-        """Returns the Base buttons list"""
-        return self.__buttons_list
-
-    @property
-    def sectors(self):
-        """Returns the sectors presents in the Base"""
-        return self._SECTS
-
-    @property
-    def magnets(self):
-        """Returns the magnets (elements) presents in the Base"""
-        return self._ELEMS
-    
-    @property
-    def named_magnets(self):
-        _SPLIT_ELEMS = []
-        for b in self.buttons:
-            if b.fantasy_name not in _SPLIT_ELEMS:
-                _SPLIT_ELEMS.append(b.fantasy_name)
-        return _SPLIT_ELEMS
-
-    @property
-    def dtypes(self):
-        """Returns the modification types used to construct the Base"""
-        return self._TYPES
-
-    @property
-    def sector_types(self):
-        """Returns the sector-types presents in the Base"""
-        return self._SECT_TYPES
+        """Returns the Base buttons list."""
+        return self._buttons
 
     @property
     def resp_mat(self):
-        """Returns the Base Response Matrix"""
-        return self.__matrix
+        """Returns the Base response matrix."""
+        return self._matrix
 
-    def is_flat(self):
-        """Verifies if the Base is flat
-        -> (verifies if the buttons in the Base are flatten)"""
-        return self.__check_isflat()
+    @property
+    def sectors(self):
+        """Returns the sectors presents in the Base."""
+        return self._sects
 
-    def is_updated(self):
-        """Verifies if the Base is up-to-date"""
-        return self.__is_updated
-    
+    @property
+    def magnets(self):
+        """Returns the magnets (elements) presents in the Base."""
+        return self._elems
+
+    @property
+    def dtypes(self):
+        """Returns the modification types used to construct the Base."""
+        return self._dtypes
+
     def __len__(self):
-        return len(self.__buttons_list)
-    
+        return len(self._buttons)
+
     def __eq__(self, other) -> bool:
         if isinstance(other, Base):
             for b in other.buttons():
@@ -410,5 +199,18 @@ class Base:
                     return False
             return True
         return False
-    
-__all__ = ("Base")
+
+    def set_default_base_buttons(self):
+        if (
+            self.__func == "vertical_disp"
+            and len(DEFAULT_BUTTONS) < self.__len__()
+        ):
+            save_pickle(self.buttons, default_buttons_path, overwrite=True)
+            load_default_base_button()
+            print("Saved Base/Buttons!")
+        else:
+            print("Base not saved.")
+            pass
+
+
+__all__ = "Base"
