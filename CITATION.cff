@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
 - family-names: "Souza"
-  given-names: "Vitor"
+  given-names: "Vitor Davi"
 
 title: "Pynel. A Python module for misalignment analysis and the effects in the optics of SIRIUS model."
 version: 1.0.0
