@@ -1,4 +1,5 @@
-Pynel package for vertical dispersion fitting and analisys.
+Pynel package. Module for vertical dispersion fitting and analisys.
+
 Internship project at FAC - LNLS - CNPEM.
 
 To install the package:
